@@ -13,13 +13,11 @@ from sqlalchemy import func, or_, and_, desc, asc
 from .models import (
     Amendment,
     AmendmentProgress,
-    AmendmentApplication,
     AmendmentLink,
     AmendmentStatus,
     DevelopmentStatus,
     Priority,
     AmendmentType,
-    LinkType,
 )
 from .schemas import (
     AmendmentCreate,
@@ -217,7 +215,9 @@ def get_amendments(
 
         # Filter by status
         if filters.amendment_status:
-            query = query.filter(Amendment.amendment_status.in_(filters.amendment_status))
+            query = query.filter(
+                Amendment.amendment_status.in_(filters.amendment_status)
+            )
 
         # Filter by development status
         if filters.development_status:
@@ -484,9 +484,7 @@ def add_amendment_progress(
         raise ValueError(f"Failed to add progress entry: {str(e)}") from e
 
 
-def get_amendment_progress(
-    db: Session, amendment_id: int
-) -> List[AmendmentProgress]:
+def get_amendment_progress(db: Session, amendment_id: int) -> List[AmendmentProgress]:
     """
     Get all progress entries for an amendment, ordered by date.
 
@@ -577,9 +575,7 @@ def get_linked_amendments(db: Session, amendment_id: int) -> List[AmendmentLink]
         List[AmendmentLink]: List of amendment links
     """
     return (
-        db.query(AmendmentLink)
-        .filter(AmendmentLink.amendment_id == amendment_id)
-        .all()
+        db.query(AmendmentLink).filter(AmendmentLink.amendment_id == amendment_id).all()
     )
 
 
@@ -595,7 +591,11 @@ def remove_amendment_link(db: Session, link_id: int) -> bool:
         bool: True if removed, False if not found
     """
     try:
-        link = db.query(AmendmentLink).filter(AmendmentLink.amendment_link_id == link_id).first()
+        link = (
+            db.query(AmendmentLink)
+            .filter(AmendmentLink.amendment_link_id == link_id)
+            .first()
+        )
         if not link:
             return False
 
@@ -669,7 +669,7 @@ def get_amendment_stats(db: Session) -> dict:
         .filter(
             and_(
                 Amendment.qa_assigned_id.isnot(None),
-                Amendment.qa_completed == False,
+                Amendment.qa_completed.is_(False),
             )
         )
         .scalar()
@@ -678,7 +678,7 @@ def get_amendment_stats(db: Session) -> dict:
     # Database changes count
     database_changes_count = (
         db.query(func.count(Amendment.amendment_id))
-        .filter(Amendment.database_changes == True)
+        .filter(Amendment.database_changes.is_(True))
         .scalar()
     )
 
