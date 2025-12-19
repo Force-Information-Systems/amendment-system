@@ -2,10 +2,7 @@
 Tests for database configuration and connection management.
 """
 
-import os
-import tempfile
 import pytest
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.database import (
@@ -49,7 +46,8 @@ class TestDatabaseConfiguration:
     def test_check_db_connection(self):
         """Test database connection check."""
         result = check_db_connection()
-        # The connection might fail in test environment, so we just check it returns a boolean
+        # The connection might fail in test environment,
+        # so we just check it returns a boolean
         assert isinstance(result, bool)
 
     def test_init_db(self):
@@ -127,9 +125,9 @@ class TestDatabaseModels:
             db.commit()
 
             # Verify it was created
-            result = db.query(Amendment).filter_by(
-                amendment_reference="TEST-001"
-            ).first()
+            result = (
+                db.query(Amendment).filter_by(amendment_reference="TEST-001").first()
+            )
             assert result is not None
             assert result.amendment_reference == "TEST-001"
             assert result.amendment_type == AmendmentType.BUG
@@ -169,9 +167,9 @@ class TestDatabaseModels:
             db.commit()
 
             # Verify relationship
-            result = db.query(Amendment).filter_by(
-                amendment_reference="TEST-002"
-            ).first()
+            result = (
+                db.query(Amendment).filter_by(amendment_reference="TEST-002").first()
+            )
             assert len(result.progress_entries) == 1
             assert result.progress_entries[0].description == "Started development"
 
@@ -196,9 +194,9 @@ class TestDatabaseModels:
             db.commit()
 
             # Verify relationship
-            result = db.query(Amendment).filter_by(
-                amendment_reference="TEST-003"
-            ).first()
+            result = (
+                db.query(Amendment).filter_by(amendment_reference="TEST-003").first()
+            )
             assert len(result.applications) == 1
             assert result.applications[0].application_name == "Test App"
 
@@ -228,9 +226,9 @@ class TestDatabaseModels:
             db.commit()
 
             # Verify relationship
-            result = db.query(Amendment).filter_by(
-                amendment_reference="TEST-004"
-            ).first()
+            result = (
+                db.query(Amendment).filter_by(amendment_reference="TEST-004").first()
+            )
             assert len(result.links) == 1
             assert result.links[0].linked_amendment_id == amendment2.amendment_id
 
@@ -259,13 +257,16 @@ class TestDatabaseModels:
             db.commit()
 
             # Verify progress is also deleted
-            progress_count = db.query(AmendmentProgress).filter_by(
-                amendment_id=amendment_id
-            ).count()
+            progress_count = (
+                db.query(AmendmentProgress).filter_by(amendment_id=amendment_id).count()
+            )
             assert progress_count == 0
 
     def test_foreign_key_constraint_on_amendment_link(self):
-        """Test that foreign key constraint exists on AmendmentLink.linked_amendment_id."""
+        """
+        Test that foreign key constraint exists on
+        AmendmentLink.linked_amendment_id.
+        """
         from sqlalchemy.exc import IntegrityError
 
         # First, verify that linking to an existing amendment works

@@ -29,6 +29,7 @@ class Base(DeclarativeBase):
     All models should inherit from this class to automatically
     include SQLAlchemy metadata and common functionality.
     """
+
     pass
 
 
@@ -71,7 +72,10 @@ try:
             max_overflow=10,
             echo=os.getenv("SQL_ECHO", "False").lower() == "true",
         )
-        logger.info(f"Database engine created for: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else 'database'}")
+        db_name = (
+            DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "database"
+        )
+        logger.info(f"Database engine created for: {db_name}")
 
 except Exception as e:
     logger.error(f"Failed to create database engine: {e}")
@@ -165,6 +169,7 @@ def check_db_connection() -> bool:
     """
     try:
         from sqlalchemy import text
+
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         logger.info("Database connection check: OK")
