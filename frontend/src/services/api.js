@@ -88,4 +88,70 @@ export const referenceAPI = {
   },
 };
 
+export const employeeAPI = {
+  getAll: (params = {}) => {
+    return apiClient.get('/employees', { params });
+  },
+
+  getById: (id) => {
+    return apiClient.get(`/employees/${id}`);
+  },
+
+  create: (data) => {
+    return apiClient.post('/employees', data);
+  },
+
+  update: (id, data) => {
+    return apiClient.put(`/employees/${id}`, data);
+  },
+
+  delete: (id) => {
+    return apiClient.delete(`/employees/${id}`);
+  },
+};
+
+export const applicationAPI = {
+  getAll: (params = {}) => {
+    return apiClient.get('/applications', { params });
+  },
+
+  getById: (id) => {
+    return apiClient.get(`/applications/${id}`);
+  },
+
+  create: (data) => {
+    return apiClient.post('/applications', data);
+  },
+
+  update: (id, data) => {
+    return apiClient.put(`/applications/${id}`, data);
+  },
+
+  delete: (id) => {
+    return apiClient.delete(`/applications/${id}`);
+  },
+
+  getVersions: (id, params = {}) => {
+    return apiClient.get(`/applications/${id}/versions`, { params });
+  },
+
+  createVersion: (id, data) => {
+    return apiClient.post(`/applications/${id}/versions`, data);
+  },
+};
+
+export const versionAPI = {
+  getById: (id) => {
+    return apiClient.get(`/versions/${id}`);
+  },
+
+  update: (id, data) => {
+    return apiClient.put(`/versions/${id}`, data);
+  },
+
+  delete: (id) => {
+    return apiClient.delete(`/versions/${id}`);
+  },
+};
+
 export default apiClient;
