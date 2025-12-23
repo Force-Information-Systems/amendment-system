@@ -17,8 +17,10 @@ from .database import Base
 
 class AmendmentType(str, enum.Enum):
     BUG = "Bug"
+    FAULT = "Fault"
     ENHANCEMENT = "Enhancement"
     FEATURE = "Feature"
+    SUGGESTION = "Suggestion"
     MAINTENANCE = "Maintenance"
     DOCUMENTATION = "Documentation"
 
@@ -174,11 +176,19 @@ class AmendmentApplication(Base):
     amendment_id = Column(
         Integer, ForeignKey("amendments.amendment_id"), nullable=False
     )
+    application_id = Column(
+        Integer, ForeignKey("applications.application_id"), nullable=True
+    )
     application_name = Column(String(100), nullable=False)
-    version = Column(String(50), nullable=True)
+    reported_version = Column(String(50), nullable=True)
+    applied_version = Column(String(50), nullable=True)
+    development_status = Column(
+        SQLEnum(DevelopmentStatus), nullable=True
+    )
 
-    # Relationship
+    # Relationships
     amendment = relationship("Amendment", back_populates="applications")
+    application = relationship("Application")
 
     def __repr__(self) -> str:
         return (
@@ -215,4 +225,84 @@ class AmendmentLink(Base):
             f"from={self.amendment_id}, "
             f"to={self.linked_amendment_id}, "
             f"type={self.link_type})>"
+        )
+
+
+class Employee(Base):
+    __tablename__ = "employees"
+
+    employee_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    employee_name = Column(String(100), nullable=False, index=True)
+    initials = Column(String(10), nullable=True)
+    email = Column(String(150), nullable=True)
+    windows_login = Column(String(100), nullable=True)
+    is_active = Column(Boolean, default=True)
+
+    # Audit fields
+    created_on = Column(DateTime, default=func.now(), nullable=False)
+    modified_on = Column(
+        DateTime, default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<Employee(id={self.employee_id}, "
+            f"name='{self.employee_name}')>"
+        )
+
+
+class Application(Base):
+    __tablename__ = "applications"
+
+    application_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    application_name = Column(String(100), nullable=False, unique=True, index=True)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True)
+
+    # Audit fields
+    created_on = Column(DateTime, default=func.now(), nullable=False)
+    modified_on = Column(
+        DateTime, default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Relationships
+    versions = relationship(
+        "ApplicationVersion", back_populates="application", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<Application(id={self.application_id}, "
+            f"name='{self.application_name}')>"
+        )
+
+
+class ApplicationVersion(Base):
+    __tablename__ = "application_versions"
+
+    application_version_id = Column(
+        Integer, primary_key=True, index=True, autoincrement=True
+    )
+    application_id = Column(
+        Integer, ForeignKey("applications.application_id"), nullable=False
+    )
+    version = Column(String(50), nullable=False)
+    released_date = Column(DateTime, nullable=True)
+    notes = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True)
+
+    # Audit fields
+    created_on = Column(DateTime, default=func.now(), nullable=False)
+    modified_on = Column(
+        DateTime, default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Relationship
+    application = relationship("Application", back_populates="versions")
+
+    def __repr__(self) -> str:
+        return (
+            f"<ApplicationVersion(id={self.application_version_id}, "
+            f"app_id={self.application_id}, "
+            f"version='{self.version}')>"
         )

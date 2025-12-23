@@ -364,6 +364,245 @@ def remove_amendment_link(link_id: int, db: Session = Depends(get_db)):
 
 
 # ============================================================================
+# Employee Endpoints
+# ============================================================================
+
+
+@app.post("/api/employees", response_model=schemas.EmployeeResponse, status_code=201)
+def create_employee(
+    employee: schemas.EmployeeCreate,
+    db: Session = Depends(get_db),
+):
+    """
+    Create a new employee record.
+    """
+    try:
+        db_employee = crud.create_employee(db, employee)
+        return db_employee
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/employees/{employee_id}", response_model=schemas.EmployeeResponse)
+def get_employee(employee_id: int, db: Session = Depends(get_db)):
+    """
+    Get a specific employee by ID.
+    """
+    employee = crud.get_employee(db, employee_id)
+    if employee is None:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    return employee
+
+
+@app.get("/api/employees", response_model=List[schemas.EmployeeResponse])
+def get_employees(
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records"),
+    active_only: bool = Query(False, description="Filter to only active employees"),
+    db: Session = Depends(get_db),
+):
+    """
+    Get all employees with pagination.
+    """
+    employees, total = crud.get_employees(db, skip=skip, limit=limit, active_only=active_only)
+    return employees
+
+
+@app.put("/api/employees/{employee_id}", response_model=schemas.EmployeeResponse)
+def update_employee(
+    employee_id: int,
+    employee: schemas.EmployeeUpdate,
+    db: Session = Depends(get_db),
+):
+    """
+    Update an employee's information.
+    """
+    try:
+        updated_employee = crud.update_employee(db, employee_id, employee)
+        if updated_employee is None:
+            raise HTTPException(status_code=404, detail="Employee not found")
+        return updated_employee
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/employees/{employee_id}", status_code=204)
+def delete_employee(employee_id: int, db: Session = Depends(get_db)):
+    """
+    Delete an employee record.
+    """
+    try:
+        success = crud.delete_employee(db, employee_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Employee not found")
+        return None
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============================================================================
+# Application Endpoints
+# ============================================================================
+
+
+@app.post("/api/applications", response_model=schemas.ApplicationResponse, status_code=201)
+def create_application(
+    application: schemas.ApplicationCreate,
+    db: Session = Depends(get_db),
+):
+    """
+    Create a new application record.
+    """
+    try:
+        db_application = crud.create_application(db, application)
+        return db_application
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/applications/{application_id}", response_model=schemas.ApplicationWithVersions)
+def get_application(application_id: int, db: Session = Depends(get_db)):
+    """
+    Get a specific application by ID with all its versions.
+    """
+    application = crud.get_application(db, application_id)
+    if application is None:
+        raise HTTPException(status_code=404, detail="Application not found")
+    return application
+
+
+@app.get("/api/applications", response_model=List[schemas.ApplicationResponse])
+def get_applications(
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records"),
+    active_only: bool = Query(False, description="Filter to only active applications"),
+    db: Session = Depends(get_db),
+):
+    """
+    Get all applications with pagination.
+    """
+    applications, total = crud.get_applications(db, skip=skip, limit=limit, active_only=active_only)
+    return applications
+
+
+@app.put("/api/applications/{application_id}", response_model=schemas.ApplicationResponse)
+def update_application(
+    application_id: int,
+    application: schemas.ApplicationUpdate,
+    db: Session = Depends(get_db),
+):
+    """
+    Update an application's information.
+    """
+    try:
+        updated_application = crud.update_application(db, application_id, application)
+        if updated_application is None:
+            raise HTTPException(status_code=404, detail="Application not found")
+        return updated_application
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/applications/{application_id}", status_code=204)
+def delete_application(application_id: int, db: Session = Depends(get_db)):
+    """
+    Delete an application record.
+    """
+    try:
+        success = crud.delete_application(db, application_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Application not found")
+        return None
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============================================================================
+# Application Version Endpoints
+# ============================================================================
+
+
+@app.post("/api/applications/{application_id}/versions", response_model=schemas.ApplicationVersionResponse, status_code=201)
+def create_application_version(
+    application_id: int,
+    version: schemas.ApplicationVersionCreate,
+    db: Session = Depends(get_db),
+):
+    """
+    Create a new version for an application.
+    """
+    # Verify application exists
+    application = crud.get_application(db, application_id)
+    if application is None:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    # Ensure the version data has the correct application_id
+    version.application_id = application_id
+
+    try:
+        db_version = crud.create_application_version(db, version)
+        return db_version
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/applications/{application_id}/versions", response_model=List[schemas.ApplicationVersionResponse])
+def get_application_versions(
+    application_id: int,
+    active_only: bool = Query(False, description="Filter to only active versions"),
+    db: Session = Depends(get_db),
+):
+    """
+    Get all versions for a specific application.
+    """
+    versions = crud.get_application_versions(db, application_id, active_only=active_only)
+    return versions
+
+
+@app.get("/api/versions/{version_id}", response_model=schemas.ApplicationVersionResponse)
+def get_application_version(version_id: int, db: Session = Depends(get_db)):
+    """
+    Get a specific application version by ID.
+    """
+    version = crud.get_application_version(db, version_id)
+    if version is None:
+        raise HTTPException(status_code=404, detail="Application version not found")
+    return version
+
+
+@app.put("/api/versions/{version_id}", response_model=schemas.ApplicationVersionResponse)
+def update_application_version(
+    version_id: int,
+    version: schemas.ApplicationVersionUpdate,
+    db: Session = Depends(get_db),
+):
+    """
+    Update an application version's information.
+    """
+    try:
+        updated_version = crud.update_application_version(db, version_id, version)
+        if updated_version is None:
+            raise HTTPException(status_code=404, detail="Application version not found")
+        return updated_version
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/versions/{version_id}", status_code=204)
+def delete_application_version(version_id: int, db: Session = Depends(get_db)):
+    """
+    Delete an application version record.
+    """
+    try:
+        success = crud.delete_application_version(db, version_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Application version not found")
+        return None
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ============================================================================
 # Statistics and Reference Data Endpoints
 # ============================================================================
 

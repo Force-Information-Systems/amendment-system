@@ -84,7 +84,10 @@ class AmendmentApplicationBase(BaseModel):
     """Base schema for amendment applications."""
 
     application_name: str = Field(..., min_length=1, max_length=100)
-    version: Optional[str] = Field(None, max_length=50)
+    application_id: Optional[int] = None
+    reported_version: Optional[str] = Field(None, max_length=50)
+    applied_version: Optional[str] = Field(None, max_length=50)
+    development_status: Optional[DevelopmentStatus] = None
 
 
 class AmendmentApplicationCreate(AmendmentApplicationBase):
@@ -333,7 +336,9 @@ class AmendmentStats(BaseModel):
     by_type: dict[str, int]
     by_development_status: dict[str, int]
     qa_pending: int
-    database_changes_count: int
+    qa_completed: int
+    database_changes: int
+    db_upgrade_changes: int
 
 
 class ReferenceData(BaseModel):
@@ -362,7 +367,9 @@ class AmendmentStatsResponse(BaseModel):
     by_type: dict
     by_development_status: dict
     qa_pending: int
-    database_changes_count: int
+    qa_completed: int
+    database_changes: int
+    db_upgrade_changes: int
 
 
 # ============================================================================
@@ -383,3 +390,129 @@ class BulkUpdateResponse(BaseModel):
     updated_count: int
     failed_ids: List[int] = []
     errors: dict[int, str] = {}
+
+
+# ============================================================================
+# Employee Schemas
+# ============================================================================
+
+
+class EmployeeBase(BaseModel):
+    """Base schema for employees."""
+
+    employee_name: str = Field(..., min_length=1, max_length=100)
+    initials: Optional[str] = Field(None, max_length=10)
+    email: Optional[str] = Field(None, max_length=150)
+    windows_login: Optional[str] = Field(None, max_length=100)
+    is_active: bool = True
+
+
+class EmployeeCreate(EmployeeBase):
+    """Schema for creating a new employee."""
+
+    pass
+
+
+class EmployeeUpdate(BaseModel):
+    """Schema for updating an existing employee."""
+
+    employee_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    initials: Optional[str] = Field(None, max_length=10)
+    email: Optional[str] = Field(None, max_length=150)
+    windows_login: Optional[str] = Field(None, max_length=100)
+    is_active: Optional[bool] = None
+
+
+class EmployeeResponse(EmployeeBase):
+    """Schema for employee responses."""
+
+    employee_id: int
+    created_on: datetime
+    modified_on: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# Application Schemas
+# ============================================================================
+
+
+class ApplicationBase(BaseModel):
+    """Base schema for applications."""
+
+    application_name: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = None
+    is_active: bool = True
+
+
+class ApplicationCreate(ApplicationBase):
+    """Schema for creating a new application."""
+
+    pass
+
+
+class ApplicationUpdate(BaseModel):
+    """Schema for updating an existing application."""
+
+    application_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ApplicationResponse(ApplicationBase):
+    """Schema for application responses."""
+
+    application_id: int
+    created_on: datetime
+    modified_on: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# Application Version Schemas
+# ============================================================================
+
+
+class ApplicationVersionBase(BaseModel):
+    """Base schema for application versions."""
+
+    application_id: int
+    version: str = Field(..., min_length=1, max_length=50)
+    released_date: Optional[datetime] = None
+    notes: Optional[str] = None
+    is_active: bool = True
+
+
+class ApplicationVersionCreate(ApplicationVersionBase):
+    """Schema for creating a new application version."""
+
+    pass
+
+
+class ApplicationVersionUpdate(BaseModel):
+    """Schema for updating an existing application version."""
+
+    version: Optional[str] = Field(None, min_length=1, max_length=50)
+    released_date: Optional[datetime] = None
+    notes: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ApplicationVersionResponse(ApplicationVersionBase):
+    """Schema for application version responses."""
+
+    application_version_id: int
+    created_on: datetime
+    modified_on: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ApplicationWithVersions(ApplicationResponse):
+    """Schema for application with all its versions."""
+
+    versions: List[ApplicationVersionResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)

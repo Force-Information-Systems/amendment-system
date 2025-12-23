@@ -18,6 +18,9 @@ from .models import (
     DevelopmentStatus,
     Priority,
     AmendmentType,
+    Employee,
+    Application,
+    ApplicationVersion,
 )
 from .schemas import (
     AmendmentCreate,
@@ -26,6 +29,12 @@ from .schemas import (
     AmendmentProgressCreate,
     AmendmentLinkCreate,
     AmendmentFilter,
+    EmployeeCreate,
+    EmployeeUpdate,
+    ApplicationCreate,
+    ApplicationUpdate,
+    ApplicationVersionCreate,
+    ApplicationVersionUpdate,
 )
 
 
@@ -675,10 +684,24 @@ def get_amendment_stats(db: Session) -> dict:
         .scalar()
     )
 
+    # QA completed count
+    qa_completed = (
+        db.query(func.count(Amendment.amendment_id))
+        .filter(Amendment.qa_completed.is_(True))
+        .scalar()
+    )
+
     # Database changes count
-    database_changes_count = (
+    database_changes = (
         db.query(func.count(Amendment.amendment_id))
         .filter(Amendment.database_changes.is_(True))
+        .scalar()
+    )
+
+    # DB upgrade changes count
+    db_upgrade_changes = (
+        db.query(func.count(Amendment.amendment_id))
+        .filter(Amendment.db_upgrade_changes.is_(True))
         .scalar()
     )
 
@@ -689,7 +712,9 @@ def get_amendment_stats(db: Session) -> dict:
         "by_type": by_type,
         "by_development_status": by_development_status,
         "qa_pending": qa_pending,
-        "database_changes_count": database_changes_count,
+        "qa_completed": qa_completed,
+        "database_changes": database_changes,
+        "db_upgrade_changes": db_upgrade_changes,
     }
 
 
@@ -733,3 +758,446 @@ def bulk_update_amendments(
             errors[amendment_id] = str(e)
 
     return updated_count, failed_ids, errors
+
+
+# ============================================================================
+# Employee CRUD Operations
+# ============================================================================
+
+
+def create_employee(db: Session, employee: EmployeeCreate) -> Employee:
+    """
+    Create a new employee record.
+
+    Args:
+        db: Database session
+        employee: Employee creation data
+
+    Returns:
+        Employee: Created employee object
+
+    Raises:
+        ValueError: If employee creation fails
+    """
+    try:
+        db_employee = Employee(
+            employee_name=employee.employee_name,
+            initials=employee.initials,
+            email=employee.email,
+            windows_login=employee.windows_login,
+            is_active=employee.is_active,
+        )
+
+        db.add(db_employee)
+        db.commit()
+        db.refresh(db_employee)
+
+        return db_employee
+
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Failed to create employee: {str(e)}") from e
+
+
+def get_employee(db: Session, employee_id: int) -> Optional[Employee]:
+    """
+    Get an employee by ID.
+
+    Args:
+        db: Database session
+        employee_id: Employee ID
+
+    Returns:
+        Employee: Employee object or None if not found
+    """
+    return db.query(Employee).filter(Employee.employee_id == employee_id).first()
+
+
+def get_employees(
+    db: Session, skip: int = 0, limit: int = 100, active_only: bool = False
+) -> Tuple[List[Employee], int]:
+    """
+    Get all employees with pagination.
+
+    Args:
+        db: Database session
+        skip: Number of records to skip
+        limit: Maximum number of records to return
+        active_only: If True, only return active employees
+
+    Returns:
+        Tuple[List[Employee], int]: List of employees and total count
+    """
+    query = db.query(Employee)
+
+    if active_only:
+        query = query.filter(Employee.is_active.is_(True))
+
+    total = query.count()
+    employees = query.order_by(Employee.employee_name).offset(skip).limit(limit).all()
+
+    return employees, total
+
+
+def update_employee(
+    db: Session, employee_id: int, employee: EmployeeUpdate
+) -> Optional[Employee]:
+    """
+    Update an employee's information.
+
+    Args:
+        db: Database session
+        employee_id: Employee ID
+        employee: Update data
+
+    Returns:
+        Employee: Updated employee or None if not found
+
+    Raises:
+        ValueError: If update fails
+    """
+    try:
+        db_employee = get_employee(db, employee_id)
+        if not db_employee:
+            return None
+
+        update_data = employee.model_dump(exclude_unset=True)
+
+        for field, value in update_data.items():
+            setattr(db_employee, field, value)
+
+        db.commit()
+        db.refresh(db_employee)
+
+        return db_employee
+
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Failed to update employee: {str(e)}") from e
+
+
+def delete_employee(db: Session, employee_id: int) -> bool:
+    """
+    Delete an employee record.
+
+    Args:
+        db: Database session
+        employee_id: Employee ID
+
+    Returns:
+        bool: True if deleted, False if not found
+
+    Raises:
+        ValueError: If deletion fails
+    """
+    try:
+        db_employee = get_employee(db, employee_id)
+        if not db_employee:
+            return False
+
+        db.delete(db_employee)
+        db.commit()
+        return True
+
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Failed to delete employee: {str(e)}") from e
+
+
+# ============================================================================
+# Application CRUD Operations
+# ============================================================================
+
+
+def create_application(db: Session, application: ApplicationCreate) -> Application:
+    """
+    Create a new application record.
+
+    Args:
+        db: Database session
+        application: Application creation data
+
+    Returns:
+        Application: Created application object
+
+    Raises:
+        ValueError: If application creation fails
+    """
+    try:
+        db_application = Application(
+            application_name=application.application_name,
+            description=application.description,
+            is_active=application.is_active,
+        )
+
+        db.add(db_application)
+        db.commit()
+        db.refresh(db_application)
+
+        return db_application
+
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Failed to create application: {str(e)}") from e
+
+
+def get_application(db: Session, application_id: int) -> Optional[Application]:
+    """
+    Get an application by ID with all versions loaded.
+
+    Args:
+        db: Database session
+        application_id: Application ID
+
+    Returns:
+        Application: Application object or None if not found
+    """
+    return (
+        db.query(Application)
+        .options(joinedload(Application.versions))
+        .filter(Application.application_id == application_id)
+        .first()
+    )
+
+
+def get_applications(
+    db: Session, skip: int = 0, limit: int = 100, active_only: bool = False
+) -> Tuple[List[Application], int]:
+    """
+    Get all applications with pagination.
+
+    Args:
+        db: Database session
+        skip: Number of records to skip
+        limit: Maximum number of records to return
+        active_only: If True, only return active applications
+
+    Returns:
+        Tuple[List[Application], int]: List of applications and total count
+    """
+    query = db.query(Application)
+
+    if active_only:
+        query = query.filter(Application.is_active.is_(True))
+
+    total = query.count()
+    applications = (
+        query.order_by(Application.application_name).offset(skip).limit(limit).all()
+    )
+
+    return applications, total
+
+
+def update_application(
+    db: Session, application_id: int, application: ApplicationUpdate
+) -> Optional[Application]:
+    """
+    Update an application's information.
+
+    Args:
+        db: Database session
+        application_id: Application ID
+        application: Update data
+
+    Returns:
+        Application: Updated application or None if not found
+
+    Raises:
+        ValueError: If update fails
+    """
+    try:
+        db_application = get_application(db, application_id)
+        if not db_application:
+            return None
+
+        update_data = application.model_dump(exclude_unset=True)
+
+        for field, value in update_data.items():
+            setattr(db_application, field, value)
+
+        db.commit()
+        db.refresh(db_application)
+
+        return db_application
+
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Failed to update application: {str(e)}") from e
+
+
+def delete_application(db: Session, application_id: int) -> bool:
+    """
+    Delete an application record.
+
+    Args:
+        db: Database session
+        application_id: Application ID
+
+    Returns:
+        bool: True if deleted, False if not found
+
+    Raises:
+        ValueError: If deletion fails
+    """
+    try:
+        db_application = get_application(db, application_id)
+        if not db_application:
+            return False
+
+        db.delete(db_application)
+        db.commit()
+        return True
+
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Failed to delete application: {str(e)}") from e
+
+
+# ============================================================================
+# Application Version CRUD Operations
+# ============================================================================
+
+
+def create_application_version(
+    db: Session, version: ApplicationVersionCreate
+) -> ApplicationVersion:
+    """
+    Create a new application version record.
+
+    Args:
+        db: Database session
+        version: Application version creation data
+
+    Returns:
+        ApplicationVersion: Created application version object
+
+    Raises:
+        ValueError: If version creation fails
+    """
+    try:
+        db_version = ApplicationVersion(
+            application_id=version.application_id,
+            version=version.version,
+            released_date=version.released_date,
+            notes=version.notes,
+            is_active=version.is_active,
+        )
+
+        db.add(db_version)
+        db.commit()
+        db.refresh(db_version)
+
+        return db_version
+
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Failed to create application version: {str(e)}") from e
+
+
+def get_application_version(
+    db: Session, version_id: int
+) -> Optional[ApplicationVersion]:
+    """
+    Get an application version by ID.
+
+    Args:
+        db: Database session
+        version_id: Application version ID
+
+    Returns:
+        ApplicationVersion: Application version object or None if not found
+    """
+    return (
+        db.query(ApplicationVersion)
+        .filter(ApplicationVersion.application_version_id == version_id)
+        .first()
+    )
+
+
+def get_application_versions(
+    db: Session, application_id: int, active_only: bool = False
+) -> List[ApplicationVersion]:
+    """
+    Get all versions for a specific application.
+
+    Args:
+        db: Database session
+        application_id: Application ID
+        active_only: If True, only return active versions
+
+    Returns:
+        List[ApplicationVersion]: List of application versions
+    """
+    query = db.query(ApplicationVersion).filter(
+        ApplicationVersion.application_id == application_id
+    )
+
+    if active_only:
+        query = query.filter(ApplicationVersion.is_active.is_(True))
+
+    return query.order_by(desc(ApplicationVersion.released_date)).all()
+
+
+def update_application_version(
+    db: Session, version_id: int, version: ApplicationVersionUpdate
+) -> Optional[ApplicationVersion]:
+    """
+    Update an application version's information.
+
+    Args:
+        db: Database session
+        version_id: Application version ID
+        version: Update data
+
+    Returns:
+        ApplicationVersion: Updated application version or None if not found
+
+    Raises:
+        ValueError: If update fails
+    """
+    try:
+        db_version = get_application_version(db, version_id)
+        if not db_version:
+            return None
+
+        update_data = version.model_dump(exclude_unset=True)
+
+        for field, value in update_data.items():
+            setattr(db_version, field, value)
+
+        db.commit()
+        db.refresh(db_version)
+
+        return db_version
+
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Failed to update application version: {str(e)}") from e
+
+
+def delete_application_version(db: Session, version_id: int) -> bool:
+    """
+    Delete an application version record.
+
+    Args:
+        db: Database session
+        version_id: Application version ID
+
+    Returns:
+        bool: True if deleted, False if not found
+
+    Raises:
+        ValueError: If deletion fails
+    """
+    try:
+        db_version = get_application_version(db, version_id)
+        if not db_version:
+            return False
+
+        db.delete(db_version)
+        db.commit()
+        return True
+
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Failed to delete application version: {str(e)}") from e
