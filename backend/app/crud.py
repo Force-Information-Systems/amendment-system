@@ -14,6 +14,7 @@ from .models import (
     Amendment,
     AmendmentProgress,
     AmendmentLink,
+    AmendmentDocument,
     AmendmentStatus,
     DevelopmentStatus,
     Priority,
@@ -28,6 +29,7 @@ from .schemas import (
     AmendmentQAUpdate,
     AmendmentProgressCreate,
     AmendmentLinkCreate,
+    AmendmentDocumentCreate,
     AmendmentFilter,
     EmployeeCreate,
     EmployeeUpdate,
@@ -166,6 +168,7 @@ def get_amendment(db: Session, amendment_id: int) -> Optional[Amendment]:
             joinedload(Amendment.progress_entries),
             joinedload(Amendment.applications),
             joinedload(Amendment.links),
+            joinedload(Amendment.documents),
         )
         .filter(Amendment.amendment_id == amendment_id)
         .first()
@@ -189,6 +192,7 @@ def get_amendment_by_reference(db: Session, reference: str) -> Optional[Amendmen
             joinedload(Amendment.progress_entries),
             joinedload(Amendment.applications),
             joinedload(Amendment.links),
+            joinedload(Amendment.documents),
         )
         .filter(Amendment.amendment_reference == reference)
         .first()
@@ -1201,3 +1205,118 @@ def delete_application_version(db: Session, version_id: int) -> bool:
     except Exception as e:
         db.rollback()
         raise ValueError(f"Failed to delete application version: {str(e)}") from e
+
+
+# ============================================================================
+# Amendment Document CRUD Operations
+# ============================================================================
+
+
+def create_amendment_document(
+    db: Session, amendment_id: int, document: AmendmentDocumentCreate
+) -> AmendmentDocument:
+    """
+    Create a new document record for an amendment.
+
+    Args:
+        db: Database session
+        amendment_id: Amendment ID
+        document: Document creation data
+
+    Returns:
+        AmendmentDocument: Created document object
+
+    Raises:
+        ValueError: If document creation fails
+    """
+    try:
+        db_document = AmendmentDocument(
+            amendment_id=amendment_id,
+            document_name=document.document_name,
+            original_filename=document.original_filename,
+            file_path=document.file_path,
+            file_size=document.file_size,
+            mime_type=document.mime_type,
+            document_type=document.document_type,
+            description=document.description,
+            uploaded_by=document.uploaded_by,
+        )
+
+        db.add(db_document)
+        db.commit()
+        db.refresh(db_document)
+
+        return db_document
+
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Failed to create document: {str(e)}") from e
+
+
+def get_amendment_document(
+    db: Session, document_id: int
+) -> Optional[AmendmentDocument]:
+    """
+    Get a document by ID.
+
+    Args:
+        db: Database session
+        document_id: Document ID
+
+    Returns:
+        AmendmentDocument: Document object or None if not found
+    """
+    return (
+        db.query(AmendmentDocument)
+        .filter(AmendmentDocument.document_id == document_id)
+        .first()
+    )
+
+
+def get_amendment_documents(
+    db: Session, amendment_id: int
+) -> List[AmendmentDocument]:
+    """
+    Get all documents for a specific amendment.
+
+    Args:
+        db: Database session
+        amendment_id: Amendment ID
+
+    Returns:
+        List[AmendmentDocument]: List of documents
+    """
+    return (
+        db.query(AmendmentDocument)
+        .filter(AmendmentDocument.amendment_id == amendment_id)
+        .order_by(desc(AmendmentDocument.uploaded_on))
+        .all()
+    )
+
+
+def delete_amendment_document(db: Session, document_id: int) -> bool:
+    """
+    Delete a document record.
+
+    Args:
+        db: Database session
+        document_id: Document ID
+
+    Returns:
+        bool: True if deleted, False if not found
+
+    Raises:
+        ValueError: If deletion fails
+    """
+    try:
+        db_document = get_amendment_document(db, document_id)
+        if not db_document:
+            return False
+
+        db.delete(db_document)
+        db.commit()
+        return True
+
+    except Exception as e:
+        db.rollback()
+        raise ValueError(f"Failed to delete document: {str(e)}") from e

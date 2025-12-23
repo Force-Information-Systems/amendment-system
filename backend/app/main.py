@@ -3,10 +3,14 @@ Main FastAPI application for the Amendment Tracking System.
 """
 
 import os
+import shutil
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .database import init_db, check_db_connection
 from . import models  # noqa: F401 - imported for SQLAlchemy model registration
@@ -658,3 +662,155 @@ def get_link_types():
     """Get all available amendment link types."""
     from .models import LinkType
     return [link_type.value for link_type in LinkType]
+
+
+@app.get("/api/reference/document-types", response_model=List[str])
+def get_document_types():
+    """Get all available document types."""
+    from .models import DocumentType
+    return [doc_type.value for doc_type in DocumentType]
+
+
+# ============================================================================
+# Document Endpoints
+# ============================================================================
+
+# Configure upload directory
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+
+@app.post("/api/amendments/{amendment_id}/documents", response_model=schemas.AmendmentDocumentResponse, status_code=201)
+async def upload_amendment_document(
+    amendment_id: int,
+    file: UploadFile = File(...),
+    document_name: str = Query(..., description="Display name for the document"),
+    document_type: str = Query("Other", description="Type of document"),
+    description: str = Query(None, description="Document description"),
+    uploaded_by: str = Query(None, description="Username of uploader"),
+    db: Session = Depends(get_db),
+):
+    """
+    Upload a document file for an amendment.
+
+    The file will be saved to the uploads directory and a database record created.
+    """
+    # Verify amendment exists
+    amendment = crud.get_amendment(db, amendment_id)
+    if amendment is None:
+        raise HTTPException(status_code=404, detail="Amendment not found")
+
+    # Create amendment-specific directory
+    amendment_dir = UPLOAD_DIR / f"amendment_{amendment_id}"
+    amendment_dir.mkdir(exist_ok=True)
+
+    # Generate unique filename
+    file_extension = Path(file.filename).suffix
+    import uuid
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    file_path = amendment_dir / unique_filename
+
+    # Save file
+    try:
+        with file_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+
+    # Get file size
+    file_size = file_path.stat().st_size
+
+    # Create database record
+    from .models import DocumentType as DocTypeEnum
+
+    # Convert string to enum
+    try:
+        doc_type_enum = DocTypeEnum(document_type)
+    except ValueError:
+        doc_type_enum = DocTypeEnum.OTHER
+
+    document_data = schemas.AmendmentDocumentCreate(
+        document_name=document_name,
+        original_filename=file.filename,
+        file_path=str(file_path.relative_to(UPLOAD_DIR)),
+        file_size=file_size,
+        mime_type=file.content_type,
+        document_type=doc_type_enum,
+        description=description,
+        uploaded_by=uploaded_by,
+    )
+
+    try:
+        db_document = crud.create_amendment_document(db, amendment_id, document_data)
+        return db_document
+    except ValueError as e:
+        # If database creation fails, delete the uploaded file
+        file_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/amendments/{amendment_id}/documents", response_model=List[schemas.AmendmentDocumentResponse])
+def get_amendment_documents_list(
+    amendment_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Get all documents for a specific amendment.
+    """
+    documents = crud.get_amendment_documents(db, amendment_id)
+    return documents
+
+
+@app.get("/api/documents/{document_id}/download")
+async def download_amendment_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Download a specific document file.
+    """
+    document = crud.get_amendment_document(db, document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    file_path = UPLOAD_DIR / document.file_path
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    return FileResponse(
+        path=str(file_path),
+        filename=document.original_filename,
+        media_type=document.mime_type or "application/octet-stream",
+    )
+
+
+@app.delete("/api/documents/{document_id}", status_code=204)
+def delete_amendment_document_endpoint(
+    document_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Delete a document and its file.
+    """
+    # Get document to find file path
+    document = crud.get_amendment_document(db, document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Delete file from disk
+    file_path = UPLOAD_DIR / document.file_path
+    if file_path.exists():
+        try:
+            file_path.unlink()
+        except Exception as e:
+            # Log error but continue with database deletion
+            print(f"Warning: Failed to delete file {file_path}: {e}")
+
+    # Delete database record
+    try:
+        success = crud.delete_amendment_document(db, document_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Document not found")
+        return None
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

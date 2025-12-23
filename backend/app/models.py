@@ -61,6 +61,13 @@ class LinkType(str, enum.Enum):
     BLOCKED_BY = "Blocked By"
 
 
+class DocumentType(str, enum.Enum):
+    TEST_PLAN = "Test Plan"
+    SCREENSHOT = "Screenshot"
+    SPECIFICATION = "Specification"
+    OTHER = "Other"
+
+
 class Amendment(Base):
     __tablename__ = "amendments"
 
@@ -125,6 +132,9 @@ class Amendment(Base):
         foreign_keys="AmendmentLink.amendment_id",
         back_populates="amendment",
         cascade="all, delete-orphan",
+    )
+    documents = relationship(
+        "AmendmentDocument", back_populates="amendment", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
@@ -225,6 +235,38 @@ class AmendmentLink(Base):
             f"from={self.amendment_id}, "
             f"to={self.linked_amendment_id}, "
             f"type={self.link_type})>"
+        )
+
+
+class AmendmentDocument(Base):
+    __tablename__ = "amendment_documents"
+
+    document_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    amendment_id = Column(
+        Integer, ForeignKey("amendments.amendment_id"), nullable=False
+    )
+
+    # Document information
+    document_name = Column(String(255), nullable=False)
+    original_filename = Column(String(255), nullable=False)
+    file_path = Column(String(500), nullable=False)
+    file_size = Column(Integer, nullable=True)  # Size in bytes
+    mime_type = Column(String(100), nullable=True)
+    document_type = Column(SQLEnum(DocumentType), nullable=False, default=DocumentType.OTHER)
+    description = Column(Text, nullable=True)
+
+    # Audit fields
+    uploaded_by = Column(String(100), nullable=True)
+    uploaded_on = Column(DateTime, default=func.now(), nullable=False)
+
+    # Relationship
+    amendment = relationship("Amendment", back_populates="documents")
+
+    def __repr__(self) -> str:
+        return (
+            f"<AmendmentDocument(id={self.document_id}, "
+            f"amendment_id={self.amendment_id}, "
+            f"name='{self.document_name}')>"
         )
 
 

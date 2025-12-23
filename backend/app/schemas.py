@@ -15,6 +15,7 @@ from .models import (
     DevelopmentStatus,
     Priority,
     LinkType,
+    DocumentType,
 )
 
 
@@ -246,6 +247,7 @@ class AmendmentResponse(AmendmentBase):
     progress_entries: List[AmendmentProgressResponse] = []
     applications: List[AmendmentApplicationResponse] = []
     links: List[AmendmentLinkResponse] = []
+    documents: List["AmendmentDocumentResponse"] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -390,6 +392,44 @@ class BulkUpdateResponse(BaseModel):
     updated_count: int
     failed_ids: List[int] = []
     errors: dict[int, str] = {}
+
+
+# ============================================================================
+# AmendmentDocument Schemas
+# ============================================================================
+
+
+class AmendmentDocumentBase(BaseModel):
+    """Base schema for amendment documents."""
+
+    document_name: str = Field(..., min_length=1, max_length=255)
+    document_type: DocumentType = DocumentType.OTHER
+    description: Optional[str] = None
+
+
+class AmendmentDocumentCreate(AmendmentDocumentBase):
+    """Schema for creating a document entry (file uploaded separately)."""
+
+    original_filename: str
+    file_path: str
+    file_size: Optional[int] = None
+    mime_type: Optional[str] = None
+    uploaded_by: Optional[str] = None
+
+
+class AmendmentDocumentResponse(AmendmentDocumentBase):
+    """Schema for document responses."""
+
+    document_id: int
+    amendment_id: int
+    original_filename: str
+    file_path: str
+    file_size: Optional[int] = None
+    mime_type: Optional[str] = None
+    uploaded_by: Optional[str] = None
+    uploaded_on: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
