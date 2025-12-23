@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { amendmentAPI, referenceAPI, documentAPI } from '../services/api';
+import { amendmentAPI, referenceAPI, documentAPI, applicationAPI } from '../services/api';
 import './AmendmentCreate.css';
 
 function AmendmentCreate() {
@@ -14,6 +14,7 @@ function AmendmentCreate() {
   const [devStatuses, setDevStatuses] = useState([]);
   const [priorities, setPriorities] = useState([]);
   const [forces, setForces] = useState([]);
+  const [availableApps, setAvailableApps] = useState([]);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -23,7 +24,6 @@ function AmendmentCreate() {
     development_status: 'Not Started',
     priority: 'Medium',
     force: '',
-    application: '',
     notes: '',
     reported_by: '',
     assigned_to: '',
@@ -36,18 +36,22 @@ function AmendmentCreate() {
   // Document attachments
   const [documents, setDocuments] = useState([]);
 
+  // Applications tracking
+  const [applications, setApplications] = useState([]);
+
   useEffect(() => {
     loadReferenceData();
   }, []);
 
   const loadReferenceData = async () => {
     try {
-      const [typesRes, statusesRes, devStatusesRes, prioritiesRes, forcesRes] = await Promise.all([
+      const [typesRes, statusesRes, devStatusesRes, prioritiesRes, forcesRes, appsRes] = await Promise.all([
         referenceAPI.getTypes(),
         referenceAPI.getStatuses(),
         referenceAPI.getDevelopmentStatuses(),
         referenceAPI.getPriorities(),
         referenceAPI.getForces(),
+        applicationAPI.getAll({ active_only: true }),
       ]);
 
       setTypes(typesRes.data);
@@ -55,6 +59,7 @@ function AmendmentCreate() {
       setDevStatuses(devStatusesRes.data);
       setPriorities(prioritiesRes.data);
       setForces(forcesRes.data);
+      setAvailableApps(appsRes.data.applications || []);
 
       // Set initial values from reference data
       if (typesRes.data.length > 0) {
@@ -105,6 +110,38 @@ function AmendmentCreate() {
     setDocuments(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleAddApplication = () => {
+    setApplications(prev => [...prev, {
+      application_id: null,
+      application_name: '',
+      reported_version: '',
+      applied_version: '',
+      development_status: devStatuses[0] || 'Not Started'
+    }]);
+  };
+
+  const handleApplicationChange = (index, field, value) => {
+    setApplications(prev => prev.map((app, i) => {
+      if (i !== index) return app;
+
+      const updated = { ...app, [field]: value };
+
+      // If application_id changes, update application_name from availableApps
+      if (field === 'application_id' && value) {
+        const selectedApp = availableApps.find(a => a.application_id === parseInt(value));
+        if (selectedApp) {
+          updated.application_name = selectedApp.application_name;
+        }
+      }
+
+      return updated;
+    }));
+  };
+
+  const handleRemoveApplication = (index) => {
+    setApplications(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -122,7 +159,7 @@ function AmendmentCreate() {
       const submitData = {
         ...formData,
         force: formData.force || null,
-        application: formData.application || null,
+        application: null, // No longer using simple text field
         notes: formData.notes || null,
         reported_by: formData.reported_by || null,
         assigned_to: formData.assigned_to || null,
@@ -132,6 +169,27 @@ function AmendmentCreate() {
 
       const response = await amendmentAPI.create(submitData);
       const amendmentId = response.data.amendment_id;
+
+      // Add applications if any
+      if (applications.length > 0) {
+        const appPromises = applications.map(app => {
+          const appData = {
+            application_id: app.application_id || null,
+            application_name: app.application_name || 'Unknown',
+            reported_version: app.reported_version || null,
+            applied_version: app.applied_version || null,
+            development_status: app.development_status || null,
+          };
+          return amendmentAPI.addApplication(amendmentId, appData);
+        });
+
+        try {
+          await Promise.all(appPromises);
+        } catch (appErr) {
+          console.error('Failed to add some applications:', appErr);
+          // Continue even if application creation fails
+        }
+      }
 
       // Upload any attached documents
       if (documents.length > 0) {
@@ -249,16 +307,6 @@ function AmendmentCreate() {
               </select>
             </div>
 
-            <div className="form-field">
-              <label>Application</label>
-              <input
-                type="text"
-                name="application"
-                value={formData.application}
-                onChange={handleChange}
-                placeholder="e.g., MyApp v1.0"
-              />
-            </div>
 
             <div className="form-field">
               <label>Reported By</label>
@@ -326,6 +374,68 @@ function AmendmentCreate() {
               placeholder="Notes for the release documentation..."
             />
           </div>
+        </div>
+
+        <div className="form-section">
+          <h2>Applications</h2>
+          <p className="section-hint">Track which applications this amendment affects</p>
+
+          <button type="button" className="btn btn-secondary" onClick={handleAddApplication}>
+            Add Application
+          </button>
+
+          {applications.length > 0 && (
+            <div className="documents-preview" style={{ marginTop: '1rem' }}>
+              <h3>Applications ({applications.length})</h3>
+              {applications.map((app, index) => (
+                <div key={index} className="document-preview-item">
+                  <div className="doc-preview-header">
+                    <strong>Application {index + 1}</strong>
+                    <button
+                      type="button"
+                      className="btn-remove"
+                      onClick={() => handleRemoveApplication(index)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="app-fields" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <select
+                      value={app.application_id || ''}
+                      onChange={(e) => handleApplicationChange(index, 'application_id', e.target.value)}
+                    >
+                      <option value="">Select Application...</option>
+                      {availableApps.map(availableApp => (
+                        <option key={availableApp.application_id} value={availableApp.application_id}>
+                          {availableApp.application_name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Reported Version"
+                      value={app.reported_version}
+                      onChange={(e) => handleApplicationChange(index, 'reported_version', e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Applied Version"
+                      value={app.applied_version}
+                      onChange={(e) => handleApplicationChange(index, 'applied_version', e.target.value)}
+                    />
+                    <select
+                      value={app.development_status || ''}
+                      onChange={(e) => handleApplicationChange(index, 'development_status', e.target.value)}
+                    >
+                      {devStatuses.map(status => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="form-section">

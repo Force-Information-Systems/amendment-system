@@ -627,6 +627,36 @@ function AmendmentDetail() {
         </div>
 
         <div className="detail-section">
+          <h2>Applications</h2>
+          {amendment.applications && amendment.applications.length > 0 ? (
+            <div className="documents-list">
+              <table className="documents-table">
+                <thead>
+                  <tr>
+                    <th>Application</th>
+                    <th>Reported Version</th>
+                    <th>Applied Version</th>
+                    <th>Dev Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {amendment.applications.map(app => (
+                    <tr key={app.id}>
+                      <td><strong>{app.application_name}</strong></td>
+                      <td>{app.reported_version || 'N/A'}</td>
+                      <td>{app.applied_version || 'N/A'}</td>
+                      <td>{app.development_status || 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p>No applications linked yet.</p>
+          )}
+        </div>
+
+        <div className="detail-section">
           <h2>Documents</h2>
           {amendment.documents && amendment.documents.length > 0 ? (
             <div className="documents-list">
