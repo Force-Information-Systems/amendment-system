@@ -16,13 +16,9 @@ from .database import Base
 
 
 class AmendmentType(str, enum.Enum):
-    BUG = "Bug"
     FAULT = "Fault"
     ENHANCEMENT = "Enhancement"
-    FEATURE = "Feature"
     SUGGESTION = "Suggestion"
-    MAINTENANCE = "Maintenance"
-    DOCUMENTATION = "Documentation"
 
 
 class AmendmentStatus(str, enum.Enum):
