@@ -355,11 +355,12 @@ def get_amendments(
         if filters.modified_on_to:
             query = query.filter(Amendment.modified_on <= filters.modified_on_to)
 
-        # Text search across description, notes, and release notes
+        # Text search across reference, description, notes, and release notes
         if filters.search_text:
             search_pattern = f"%{filters.search_text}%"
             query = query.filter(
                 or_(
+                    Amendment.amendment_reference.like(search_pattern),
                     Amendment.description.like(search_pattern),
                     Amendment.notes.like(search_pattern),
                     Amendment.release_notes.like(search_pattern),
