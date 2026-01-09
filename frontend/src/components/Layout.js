@@ -29,12 +29,6 @@ function Layout({ children }) {
             >
               Amendments
             </Link>
-            <Link
-              to="/amendments/new"
-              className="nav-link btn-primary"
-            >
-              + New Amendment
-            </Link>
           </nav>
         </div>
       </header>
