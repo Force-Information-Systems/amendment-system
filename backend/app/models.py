@@ -76,17 +76,11 @@ class Amendment(Base):
     amendment_reference = Column(String(50), unique=True, nullable=False, index=True)
 
     # Basic information
-    amendment_type = Column(SQLEnum(AmendmentType), nullable=False)
+    amendment_type = Column(String(50), nullable=False)
     description = Column(Text, nullable=False)
-    amendment_status = Column(
-        SQLEnum(AmendmentStatus), nullable=False, default=AmendmentStatus.OPEN
-    )
-    development_status = Column(
-        SQLEnum(DevelopmentStatus),
-        nullable=False,
-        default=DevelopmentStatus.NOT_STARTED,
-    )
-    priority = Column(SQLEnum(Priority), nullable=False, default=Priority.MEDIUM)
+    amendment_status = Column(String(50), nullable=False, default="Open")
+    development_status = Column(String(50), nullable=False, default="Not Started")
+    priority = Column(String(50), nullable=False, default="Medium")
     force = Column(String(50), nullable=True)
     application = Column(String(100), nullable=True)
     notes = Column(Text, nullable=True)
@@ -192,9 +186,7 @@ class AmendmentApplication(Base):
     application_name = Column(String(100), nullable=False)
     reported_version = Column(String(50), nullable=True)
     applied_version = Column(String(50), nullable=True)
-    development_status = Column(
-        SQLEnum(DevelopmentStatus), nullable=True
-    )
+    development_status = Column(String(50), nullable=True)
 
     # Relationships
     amendment = relationship("Amendment", back_populates="applications")

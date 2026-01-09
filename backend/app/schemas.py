@@ -152,8 +152,8 @@ class AmendmentBase(BaseModel):
     reported_by: Optional[str] = Field(None, max_length=100)
     assigned_to: Optional[str] = Field(None, max_length=100)
     date_reported: Optional[datetime] = None
-    database_changes: bool = False
-    db_upgrade_changes: bool = False
+    database_changes: Optional[bool] = False
+    db_upgrade_changes: Optional[bool] = False
     release_notes: Optional[str] = None
 
 
@@ -229,9 +229,9 @@ class AmendmentResponse(AmendmentBase):
     # QA fields
     qa_assigned_id: Optional[int] = None
     qa_assigned_date: Optional[datetime] = None
-    qa_test_plan_check: bool = False
-    qa_test_release_notes_check: bool = False
-    qa_completed: bool = False
+    qa_test_plan_check: Optional[bool] = False
+    qa_test_release_notes_check: Optional[bool] = False
+    qa_completed: Optional[bool] = False
     qa_signature: Optional[str] = None
     qa_completed_date: Optional[datetime] = None
     qa_notes: Optional[str] = None
