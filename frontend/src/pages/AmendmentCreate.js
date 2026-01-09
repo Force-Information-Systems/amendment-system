@@ -59,7 +59,7 @@ function AmendmentCreate() {
       setDevStatuses(devStatusesRes.data);
       setPriorities(prioritiesRes.data);
       setForces(forcesRes.data);
-      setAvailableApps(appsRes.data.applications || []);
+      setAvailableApps(appsRes.data || []);
 
       // Set initial values from reference data
       if (typesRes.data.length > 0) {
