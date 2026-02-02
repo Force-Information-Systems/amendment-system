@@ -1,0 +1,195 @@
+/**
+ * ProgressBar Component Styles
+ */
+
+.progress-bar-container {
+  width: 100%;
+}
+
+/* Header with label and stats */
+.progress-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  gap: 8px;
+}
+
+.progress-bar-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  flex: 1;
+}
+
+.progress-bar-fraction {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.progress-bar-percentage {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Progress bar track */
+.progress-bar {
+  width: 100%;
+  background-color: #f3f4f6;
+  border-radius: 9999px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.progress-bar--small {
+  height: 6px;
+}
+
+.progress-bar--medium {
+  height: 10px;
+}
+
+.progress-bar--large {
+  height: 16px;
+}
+
+/* Progress bar fill */
+.progress-bar-fill {
+  height: 100%;
+  transition: width 0.5s ease;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  border-radius: 9999px;
+  position: relative;
+}
+
+/* Animated progress bar */
+.progress-bar-fill--animated {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 20px 20px;
+  animation: progress-bar-stripes 1s linear infinite;
+}
+
+@keyframes progress-bar-stripes {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 20px 20px;
+  }
+}
+
+/* Color variants */
+.progress-bar-fill--green {
+  background-color: #10b981;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.1);
+}
+
+.progress-bar-fill--blue {
+  background-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.1);
+}
+
+.progress-bar-fill--yellow {
+  background-color: #f59e0b;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.1);
+}
+
+.progress-bar-fill--red {
+  background-color: #ef4444;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.1);
+}
+
+.progress-bar-fill--orange {
+  background-color: #f97316;
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.1);
+}
+
+.progress-bar-fill--gray {
+  background-color: #6b7280;
+  box-shadow: 0 0 0 1px rgba(107, 114, 128, 0.1);
+}
+
+/* Percentage inside bar */
+.progress-bar-percentage-inner {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+}
+
+/* Size variants */
+.progress-bar-container--small .progress-bar-label {
+  font-size: 0.75rem;
+}
+
+.progress-bar-container--small .progress-bar-fraction,
+.progress-bar-container--small .progress-bar-percentage {
+  font-size: 0.625rem;
+}
+
+.progress-bar-container--large .progress-bar-label {
+  font-size: 1rem;
+}
+
+.progress-bar-container--large .progress-bar-fraction,
+.progress-bar-container--large .progress-bar-percentage {
+  font-size: 0.875rem;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .progress-bar-label,
+  .progress-bar-percentage {
+    color: #e5e7eb;
+  }
+
+  .progress-bar-fraction {
+    color: #9ca3af;
+  }
+
+  .progress-bar {
+    background-color: #374151;
+  }
+
+  .progress-bar-fill--green {
+    background-color: #059669;
+  }
+
+  .progress-bar-fill--blue {
+    background-color: #2563eb;
+  }
+
+  .progress-bar-fill--yellow {
+    background-color: #d97706;
+  }
+
+  .progress-bar-fill--red {
+    background-color: #dc2626;
+  }
+
+  .progress-bar-fill--orange {
+    background-color: #ea580c;
+  }
+
+  .progress-bar-fill--gray {
+    background-color: #9ca3af;
+  }
+}

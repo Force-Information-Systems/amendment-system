@@ -23,6 +23,7 @@ function AmendmentList() {
       priority: searchParams.get('priority') || '',
       amendment_type: searchParams.get('amendment_type') || '',
       force: searchParams.get('force') || '',
+      application: searchParams.get('application') || '',
       development_status: searchParams.get('development_status') || '',
       assigned_to: searchParams.get('assigned_to') || '',
       reported_by: searchParams.get('reported_by') || '',

@@ -5,8 +5,9 @@ These schemas handle data validation, serialization, and documentation
 for the Amendment System API.
 """
 
+from __future__ import annotations
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 from pydantic import BaseModel, Field, ConfigDict
 
 from .models import (
@@ -16,6 +17,11 @@ from .models import (
     Priority,
     LinkType,
     DocumentType,
+    QAStatus,
+    ExecutionStatus,
+    DefectStatus,
+    DefectSeverity,
+    NotificationType,
 )
 
 
@@ -187,8 +193,10 @@ class AmendmentUpdate(BaseModel):
 class AmendmentQAUpdate(BaseModel):
     """Schema for updating QA-specific fields."""
 
+    qa_status: Optional[str] = None
     qa_assigned_id: Optional[int] = None
     qa_assigned_date: Optional[datetime] = None
+    qa_started_date: Optional[datetime] = None
     qa_test_plan_check: Optional[bool] = None
     qa_test_release_notes_check: Optional[bool] = None
     qa_completed: Optional[bool] = None
@@ -196,6 +204,7 @@ class AmendmentQAUpdate(BaseModel):
     qa_completed_date: Optional[datetime] = None
     qa_notes: Optional[str] = None
     qa_test_plan_link: Optional[str] = Field(None, max_length=500)
+    qa_blocked_reason: Optional[str] = None
     modified_by: Optional[str] = None
 
 
@@ -227,8 +236,10 @@ class AmendmentResponse(AmendmentBase):
     amendment_reference: str
 
     # QA fields
+    qa_status: Optional[str] = None
     qa_assigned_id: Optional[int] = None
     qa_assigned_date: Optional[datetime] = None
+    qa_started_date: Optional[datetime] = None
     qa_test_plan_check: Optional[bool] = False
     qa_test_release_notes_check: Optional[bool] = False
     qa_completed: Optional[bool] = False
@@ -236,6 +247,7 @@ class AmendmentResponse(AmendmentBase):
     qa_completed_date: Optional[datetime] = None
     qa_notes: Optional[str] = None
     qa_test_plan_link: Optional[str] = None
+    qa_blocked_reason: Optional[str] = None
 
     # Audit fields
     created_by: Optional[str] = None
@@ -273,6 +285,9 @@ class AmendmentFilter(BaseModel):
     amendment_type: Optional[List[AmendmentType]] = None
     force: Optional[List[str]] = None
     application: Optional[List[str]] = None
+    version: Optional[List[str]] = Field(
+        None, description="Filter by version (e.g., Centurion 7.5, Centurion 8.0)"
+    )
 
     # Filter by people
     assigned_to: Optional[List[str]] = None
@@ -295,6 +310,12 @@ class AmendmentFilter(BaseModel):
     qa_completed: Optional[bool] = None
     qa_assigned: Optional[bool] = Field(
         None, description="Filter by whether QA is assigned"
+    )
+    qa_assigned_to_employee_id: Optional[int] = Field(
+        None, description="Filter by QA assigned to specific employee"
+    )
+    qa_overall_result: Optional[List[str]] = Field(
+        None, description="Filter by QA overall result (Passed, Failed, Passed with Issues)"
     )
 
     # Database change filters
@@ -474,6 +495,45 @@ class EmployeeResponse(EmployeeBase):
 
 
 # ============================================================================
+# Authentication Schemas
+# ============================================================================
+
+
+class LoginRequest(BaseModel):
+    """Schema for login requests."""
+
+    username: str = Field(..., min_length=1, max_length=100, description="Windows login or email")
+    password: str = Field(..., min_length=1, description="Password")
+
+
+class Token(BaseModel):
+    """Schema for JWT token response."""
+
+    access_token: str
+    token_type: str = "bearer"
+
+
+class TokenData(BaseModel):
+    """Schema for decoded token data."""
+
+    employee_id: Optional[int] = None
+    role: Optional[str] = None
+
+
+class UserInfo(BaseModel):
+    """Schema for current user information."""
+
+    employee_id: int
+    employee_name: str
+    email: Optional[str] = None
+    windows_login: Optional[str] = None
+    role: str
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
 # Application Schemas
 # ============================================================================
 
@@ -556,3 +616,613 @@ class ApplicationWithVersions(ApplicationResponse):
     versions: List[ApplicationVersionResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# QA System Schemas
+# ============================================================================
+
+
+# ============================================================================
+# QA Test Case Schemas
+# ============================================================================
+
+
+class QATestCaseBase(BaseModel):
+    """Base schema for QA test cases."""
+
+    title: str = Field(..., min_length=1, max_length=255, description="Test case title")
+    description: Optional[str] = Field(None, description="Detailed description")
+    test_type: str = Field(..., min_length=1, max_length=50, description="Type of test (Functional, Integration, etc.)")
+    priority: str = Field(default="Medium", max_length=50, description="Test priority")
+
+    # Test details
+    preconditions: Optional[str] = Field(None, description="Pre-requisites before executing test")
+    test_steps: Optional[str] = Field(None, description="JSON array of test steps")
+    expected_results: Optional[str] = Field(None, description="Expected test results")
+
+    # Classification
+    application_id: Optional[int] = Field(None, description="Associated application ID")
+    component: Optional[str] = Field(None, max_length=100, description="Application component")
+    tags: Optional[str] = Field(None, description="JSON array of tags")
+
+    # Status
+    is_active: bool = Field(default=True, description="Is test case active")
+    is_automated: bool = Field(default=False, description="Is test automated")
+    automation_script: Optional[str] = Field(None, description="Automation script path or code")
+
+
+class QATestCaseCreate(QATestCaseBase):
+    """Schema for creating a new test case."""
+
+    created_by: Optional[str] = None
+
+
+class QATestCaseUpdate(BaseModel):
+    """Schema for updating an existing test case."""
+
+    title: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    test_type: Optional[str] = Field(None, min_length=1, max_length=50)
+    priority: Optional[str] = Field(None, max_length=50)
+    preconditions: Optional[str] = None
+    test_steps: Optional[str] = None
+    expected_results: Optional[str] = None
+    application_id: Optional[int] = None
+    component: Optional[str] = Field(None, max_length=100)
+    tags: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_automated: Optional[bool] = None
+    automation_script: Optional[str] = None
+    modified_by: Optional[str] = None
+
+
+class QATestCaseResponse(QATestCaseBase):
+    """Schema for test case responses."""
+
+    test_case_id: int
+    test_case_number: str
+    created_by: Optional[str] = None
+    created_on: datetime
+    modified_by: Optional[str] = None
+    modified_on: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class QATestCaseListResponse(BaseModel):
+    """Response schema for paginated test case lists."""
+
+    items: List[QATestCaseResponse]
+    total: int
+    skip: int
+    limit: int
+
+
+# ============================================================================
+# QA Test Execution Schemas
+# ============================================================================
+
+
+class QATestExecutionBase(BaseModel):
+    """Base schema for test executions."""
+
+    test_case_id: int = Field(..., description="Test case to execute")
+    executed_by_id: Optional[int] = Field(None, description="Employee who executed the test")
+
+    # Execution details
+    execution_status: str = Field(default="Not Run", max_length=50, description="Execution status")
+    executed_on: Optional[datetime] = Field(None, description="When test was executed")
+    duration_minutes: Optional[int] = Field(None, ge=0, description="Test duration in minutes")
+
+    # Results
+    actual_results: Optional[str] = Field(None, description="Actual test results")
+    notes: Optional[str] = Field(None, description="Additional notes")
+    attachments: Optional[str] = Field(None, description="JSON array of attachments")
+
+    # Environment
+    test_environment: Optional[str] = Field(None, max_length=100, description="Test environment")
+    build_version: Optional[str] = Field(None, max_length=50, description="Build version tested")
+
+
+class QATestExecutionCreate(QATestExecutionBase):
+    """Schema for creating a new test execution."""
+
+    amendment_id: int = Field(..., description="Amendment being tested")
+    created_by: Optional[str] = None
+
+
+class QATestExecutionUpdate(BaseModel):
+    """Schema for updating an existing test execution."""
+
+    executed_by_id: Optional[int] = None
+    execution_status: Optional[str] = Field(None, max_length=50)
+    executed_on: Optional[datetime] = None
+    duration_minutes: Optional[int] = Field(None, ge=0)
+    actual_results: Optional[str] = None
+    notes: Optional[str] = None
+    attachments: Optional[str] = None
+    test_environment: Optional[str] = Field(None, max_length=100)
+    build_version: Optional[str] = Field(None, max_length=50)
+    modified_by: Optional[str] = None
+
+
+class QATestExecutionExecuteRequest(BaseModel):
+    """Schema for executing a test (recording results)."""
+
+    execution_status: ExecutionStatus = Field(..., description="Test result status")
+    executed_on: datetime = Field(default_factory=datetime.now, description="Execution timestamp")
+    duration_minutes: Optional[int] = Field(None, ge=0, description="Test duration")
+    actual_results: Optional[str] = Field(None, description="What actually happened")
+    notes: Optional[str] = Field(None, description="Additional notes")
+    attachments: Optional[str] = Field(None, description="JSON array of attachments")
+    test_environment: Optional[str] = Field(None, description="Environment tested")
+    build_version: Optional[str] = Field(None, description="Build version")
+    executed_by_id: int = Field(..., description="Who executed the test")
+
+
+class QATestExecutionResponse(QATestExecutionBase):
+    """Schema for test execution responses."""
+
+    execution_id: int
+    amendment_id: int
+    created_by: Optional[str] = None
+    created_on: datetime
+    modified_by: Optional[str] = None
+    modified_on: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class QATestExecutionListResponse(BaseModel):
+    """Response schema for paginated test execution lists."""
+
+    items: List[QATestExecutionResponse]
+    total: int
+
+
+# ============================================================================
+# QA Defect Schemas
+# ============================================================================
+
+
+class QADefectBase(BaseModel):
+    """Base schema for QA defects."""
+
+    title: str = Field(..., min_length=1, max_length=255, description="Defect title")
+    description: Optional[str] = Field(None, description="Detailed defect description")
+    severity: str = Field(default="Medium", max_length=50, description="Defect severity")
+    status: str = Field(default="New", max_length=50, description="Defect status")
+
+    # Reproduction
+    steps_to_reproduce: Optional[str] = Field(None, description="How to reproduce the defect")
+    actual_behavior: Optional[str] = Field(None, description="What actually happens")
+    expected_behavior: Optional[str] = Field(None, description="What should happen")
+
+    # Assignment
+    assigned_to_id: Optional[int] = Field(None, description="Developer assigned to fix")
+
+    # Resolution
+    resolution: Optional[str] = Field(None, description="How defect was resolved")
+    root_cause: Optional[str] = Field(None, description="Root cause analysis")
+    fixed_in_version: Optional[str] = Field(None, max_length=50, description="Version where fixed")
+
+
+class QADefectCreate(QADefectBase):
+    """Schema for creating a new defect."""
+
+    amendment_id: int = Field(..., description="Amendment being tested")
+    test_execution_id: Optional[int] = Field(None, description="Related test execution")
+    reported_by_id: int = Field(..., description="Who reported the defect")
+    created_by: Optional[str] = None
+
+
+class QADefectUpdate(BaseModel):
+    """Schema for updating an existing defect."""
+
+    title: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    severity: Optional[str] = Field(None, max_length=50)
+    status: Optional[str] = Field(None, max_length=50)
+    steps_to_reproduce: Optional[str] = None
+    actual_behavior: Optional[str] = None
+    expected_behavior: Optional[str] = None
+    assigned_to_id: Optional[int] = None
+    resolution: Optional[str] = None
+    root_cause: Optional[str] = None
+    fixed_in_version: Optional[str] = Field(None, max_length=50)
+    assigned_date: Optional[datetime] = None
+    resolved_date: Optional[datetime] = None
+    closed_date: Optional[datetime] = None
+    modified_by: Optional[str] = None
+
+
+class QADefectResponse(QADefectBase):
+    """Schema for defect responses."""
+
+    defect_id: int
+    defect_number: str
+    amendment_id: int
+    test_execution_id: Optional[int] = None
+    reported_by_id: Optional[int] = None
+    reported_date: datetime
+    assigned_date: Optional[datetime] = None
+    resolved_date: Optional[datetime] = None
+    closed_date: Optional[datetime] = None
+    created_by: Optional[str] = None
+    created_on: datetime
+    modified_by: Optional[str] = None
+    modified_on: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class QADefectListResponse(BaseModel):
+    """Response schema for paginated defect lists."""
+
+    items: List[QADefectResponse]
+    total: int
+    skip: int
+    limit: int
+
+
+# ============================================================================
+# QA History Schemas
+# ============================================================================
+
+
+class QAHistoryResponse(BaseModel):
+    """Schema for QA history responses (read-only)."""
+
+    history_id: int
+    amendment_id: int
+    action: str
+    field_name: Optional[str] = None
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    comment: Optional[str] = None
+    changed_by_id: Optional[int] = None
+    changed_on: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class QAHistoryListResponse(BaseModel):
+    """Response schema for QA history lists."""
+
+    items: List[QAHistoryResponse]
+    total: int
+
+
+class QATimelineEvent(BaseModel):
+    """Schema for timeline visualization."""
+
+    event_id: int
+    event_type: str  # "status_change", "assignment", "test_executed", "defect_created"
+    timestamp: datetime
+    title: str
+    description: Optional[str] = None
+    actor: Optional[str] = None  # Employee name
+    metadata: Optional[dict] = None
+
+
+class QATimelineResponse(BaseModel):
+    """Response schema for QA timeline."""
+
+    amendment_id: int
+    events: List[QATimelineEvent]
+
+
+# ============================================================================
+# QA Notification Schemas
+# ============================================================================
+
+
+class QANotificationBase(BaseModel):
+    """Base schema for QA notifications."""
+
+    notification_type: str = Field(..., max_length=50, description="Type of notification")
+    title: str = Field(..., min_length=1, max_length=255, description="Notification title")
+    message: Optional[str] = Field(None, description="Notification message")
+    amendment_id: Optional[int] = Field(None, description="Related amendment")
+    defect_id: Optional[int] = Field(None, description="Related defect")
+
+
+class QANotificationCreate(QANotificationBase):
+    """Schema for creating a new notification."""
+
+    employee_id: int = Field(..., description="Recipient employee")
+    is_email_sent: bool = Field(default=False, description="Was email sent")
+
+
+class QANotificationUpdate(BaseModel):
+    """Schema for updating a notification."""
+
+    is_read: Optional[bool] = Field(None, description="Mark as read/unread")
+    read_on: Optional[datetime] = Field(None, description="When notification was read")
+
+
+class QANotificationResponse(QANotificationBase):
+    """Schema for notification responses."""
+
+    notification_id: int
+    employee_id: int
+    is_read: bool
+    is_email_sent: bool
+    read_on: Optional[datetime] = None
+    created_on: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class QANotificationListResponse(BaseModel):
+    """Response schema for notification lists."""
+
+    items: List[QANotificationResponse]
+    total: int
+    unread_count: int
+
+
+class QANotificationUnreadCountResponse(BaseModel):
+    """Response schema for unread notification count."""
+
+    unread_count: int
+
+
+# ============================================================================
+# QA Comment Schemas
+# ============================================================================
+
+
+class QACommentBase(BaseModel):
+    """Base schema for QA comments."""
+
+    amendment_id: int
+    employee_id: int
+    comment_text: str
+    comment_type: str = "General"
+
+
+class QACommentCreate(QACommentBase):
+    """Schema for creating a QA comment."""
+
+    pass
+
+
+class QACommentUpdate(BaseModel):
+    """Schema for updating a QA comment."""
+
+    comment_text: Optional[str] = None
+    comment_type: Optional[str] = None
+
+
+class QACommentResponse(QACommentBase):
+    """Response schema for QA comments."""
+
+    comment_id: int
+    is_edited: bool
+    created_on: datetime
+    modified_on: datetime
+
+    # Employee details (for display)
+    employee_name: Optional[str] = None
+
+    # GitHub Issues features
+    parent_comment_id: Optional[int] = None
+    replies: List[QACommentResponse] = []
+    mentions: List[CommentMentionResponse] = []
+    reactions: List[CommentReactionResponse] = []
+    reaction_summary: Dict[str, int] = {}
+
+    class Config:
+        from_attributes = True
+
+
+class QACommentListResponse(BaseModel):
+    """Response schema for list of QA comments."""
+
+    items: List[QACommentResponse]
+    total: int
+
+
+# ============================================================================
+# QA Dashboard & Reporting Schemas
+# ============================================================================
+
+
+class QADashboardTaskSummary(BaseModel):
+    """Summary of a QA task for dashboard."""
+
+    amendment_id: int
+    amendment_reference: str
+    description: str
+    qa_status: str
+    priority: str
+    qa_assigned_date: Optional[datetime] = None
+    qa_due_date: Optional[datetime] = None
+    is_overdue: bool
+
+
+class QADashboardResponse(BaseModel):
+    """Response schema for QA dashboard."""
+
+    assigned_to_me: List[QADashboardTaskSummary]
+    in_testing: List[QADashboardTaskSummary]
+    overdue: List[QADashboardTaskSummary]
+    completed_this_week: int
+    total_assigned: int
+    total_in_testing: int
+    total_overdue: int
+
+
+class QAMetricsResponse(BaseModel):
+    """Response schema for QA metrics."""
+
+    # Pass/fail rates
+    total_tests_executed: int
+    tests_passed: int
+    tests_failed: int
+    tests_blocked: int
+    pass_rate_percentage: float
+
+    # Defects
+    total_defects: int
+    open_defects: int
+    critical_defects: int
+    defects_by_severity: dict[str, int]
+    defects_by_status: dict[str, int]
+
+    # Time metrics
+    average_time_to_test_hours: float
+    average_test_duration_minutes: float
+
+    # SLA compliance
+    total_qa_tasks: int
+    on_time_completions: int
+    sla_compliance_percentage: float
+
+
+class QACalendarEvent(BaseModel):
+    """Schema for QA calendar events."""
+
+    event_id: int  # Amendment ID
+    title: str  # Amendment reference + description
+    start: datetime  # QA due date
+    status: str  # QA status
+    priority: str
+    is_overdue: bool
+    assigned_to: Optional[str] = None
+
+
+class QACalendarResponse(BaseModel):
+    """Response schema for QA calendar."""
+
+    events: List[QACalendarEvent]
+    total: int
+
+
+class QATesterWorkload(BaseModel):
+    """Schema for tester workload."""
+
+    employee_id: int
+    employee_name: str
+    total_assigned: int
+    in_testing: int
+    overdue: int
+    completed_this_week: int
+    average_completion_time_hours: float
+
+
+class QAWorkloadResponse(BaseModel):
+    """Response schema for team workload."""
+
+    testers: List[QATesterWorkload]
+    total_testers: int
+
+
+# ============================================================================
+# GitHub Issues Features - Comment Mentions
+# ============================================================================
+
+
+class CommentMentionBase(BaseModel):
+    """Base schema for comment mentions."""
+
+    comment_id: int
+    mentioned_employee_id: int
+
+
+class CommentMentionCreate(CommentMentionBase):
+    """Schema for creating a comment mention."""
+
+    mentioned_by_employee_id: int
+
+
+class CommentMentionResponse(CommentMentionBase):
+    """Response schema for comment mentions."""
+
+    mention_id: int
+    mentioned_by_employee_id: int
+    created_on: datetime
+    is_notified: bool
+
+    class Config:
+        from_attributes = True
+
+
+# ============================================================================
+# GitHub Issues Features - Amendment Watchers
+# ============================================================================
+
+
+class AmendmentWatcherBase(BaseModel):
+    """Base schema for amendment watchers."""
+
+    amendment_id: int
+    employee_id: int
+
+
+class AmendmentWatcherCreate(BaseModel):
+    """Schema for creating an amendment watcher."""
+
+    watch_reason: str = "Manual"
+    notify_comments: bool = True
+    notify_status_changes: bool = True
+    notify_mentions: bool = True
+
+
+class AmendmentWatcherUpdate(BaseModel):
+    """Schema for updating watcher preferences."""
+
+    is_watching: Optional[bool] = None
+    notify_comments: Optional[bool] = None
+    notify_status_changes: Optional[bool] = None
+    notify_mentions: Optional[bool] = None
+
+
+class AmendmentWatcherResponse(BaseModel):
+    """Response schema for amendment watchers."""
+
+    watcher_id: int
+    amendment_id: int
+    employee_id: int
+    watch_reason: str
+    is_watching: bool
+    created_on: datetime
+    notify_comments: bool
+    notify_status_changes: bool
+    notify_mentions: bool
+
+    # Employee details
+    employee_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ============================================================================
+# GitHub Issues Features - Comment Reactions
+# ============================================================================
+
+
+class CommentReactionCreate(BaseModel):
+    """Schema for creating/toggling a comment reaction."""
+
+    comment_id: int
+    emoji: str
+
+
+class CommentReactionResponse(BaseModel):
+    """Response schema for comment reactions."""
+
+    reaction_id: int
+    comment_id: int
+    employee_id: int
+    emoji: str
+    created_on: datetime
+
+    # Employee details
+    employee_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True

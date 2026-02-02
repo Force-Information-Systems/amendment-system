@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { amendmentAPI } from '../services/api';
 import './Dashboard.css';
 
 function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [versionStats, setVersionStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -15,8 +17,12 @@ function Dashboard() {
   const loadStats = async () => {
     try {
       setLoading(true);
-      const response = await amendmentAPI.getStats();
-      setStats(response.data);
+      const [statsResponse, versionStatsResponse] = await Promise.all([
+        amendmentAPI.getStats(),
+        amendmentAPI.getVersionStats(),
+      ]);
+      setStats(statsResponse.data);
+      setVersionStats(versionStatsResponse.data || []);
       setError(null);
     } catch (err) {
       setError('Failed to load statistics: ' + (err.response?.data?.detail || err.message));
@@ -135,6 +141,34 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      {versionStats.length > 0 && (
+        <div className="stats-section" style={{ display: 'block', marginTop: '3rem' }}>
+          <h2 className="section-title">Amendments by Application Version</h2>
+          <div className="version-stats-grid">
+            {versionStats.map((stat, idx) => (
+              <div
+                key={idx}
+                className="version-stat-card"
+                onClick={() => {
+                  const params = new URLSearchParams({ application: stat.application_name });
+                  navigate(`/amendments?${params.toString()}`);
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="version-stat-header">
+                  <span className="version-app-name">{stat.application_name}</span>
+                  <span className="version-number">{stat.version}</span>
+                </div>
+                <div className="version-stat-count">{stat.amendment_count}</div>
+                <div className="version-stat-label">
+                  {stat.amendment_count === 1 ? 'amendment' : 'amendments'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="dashboard-actions">
         <Link to="/amendments" className="btn btn-primary">

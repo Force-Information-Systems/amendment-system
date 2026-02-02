@@ -1,0 +1,192 @@
+/**
+ * WatcherButton Styles
+ */
+
+.watcher-button-container {
+  position: relative;
+  display: inline-block;
+}
+
+.watcher-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background-color: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.watcher-button:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.watcher-button.watching {
+  background-color: #dbeafe;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+
+.watcher-button.watching:hover {
+  background-color: #bfdbfe;
+  border-color: #2563eb;
+}
+
+.watcher-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.watcher-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.watcher-text {
+  font-weight: 500;
+}
+
+.watcher-count {
+  padding: 0.125rem 0.375rem;
+  background-color: #f3f4f6;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  min-width: 1.25rem;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.watcher-button.watching .watcher-count {
+  background-color: #93c5fd;
+  color: #1e3a8a;
+}
+
+.watcher-count:hover {
+  background-color: #e5e7eb;
+}
+
+.watcher-button.watching .watcher-count:hover {
+  background-color: #60a5fa;
+}
+
+.watchers-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 100;
+  min-width: 250px;
+  max-width: 320px;
+}
+
+.watchers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.watchers-header span {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.close-dropdown {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.close-dropdown:hover {
+  background-color: #f3f4f6;
+}
+
+.watchers-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.watcher-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s;
+}
+
+.watcher-item:last-child {
+  border-bottom: none;
+}
+
+.watcher-item:hover {
+  background-color: #f9fafb;
+}
+
+.watcher-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.watcher-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.watcher-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.watcher-reason {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.125rem;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .watchers-dropdown {
+    right: auto;
+    left: 0;
+    min-width: 280px;
+  }
+}

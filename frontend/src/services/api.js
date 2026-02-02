@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+// For Azure/Production: set REACT_APP_API_URL to your backend URL (e.g., https://your-backend.azurewebsites.net/api)
+// For Local Development: defaults to /api (uses proxy)
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
 const apiClient = axios.create({
@@ -8,6 +10,33 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Request interceptor to add auth token
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor to handle auth errors
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Unauthorized - token expired or invalid
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const amendmentAPI = {
   getAll: (params = {}) => {
@@ -40,6 +69,10 @@ export const amendmentAPI = {
 
   getStats: () => {
     return apiClient.get('/amendments/stats');
+  },
+
+  getVersionStats: () => {
+    return apiClient.get('/amendments/version-stats');
   },
 
   addProgress: (id, data) => {
@@ -75,6 +108,10 @@ export const amendmentAPI = {
 
   deleteApplication: (appLinkId) => {
     return apiClient.delete(`/amendment-applications/${appLinkId}`);
+  },
+
+  updateQA: (id, qaData) => {
+    return apiClient.patch(`/amendments/${id}/qa`, qaData);
   },
 };
 

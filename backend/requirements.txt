@@ -6,6 +6,12 @@ pydantic-settings==2.6.1
 python-multipart==0.0.20
 python-dotenv==1.0.1
 
+# Authentication
+PyJWT==2.8.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.1.2
+ldap3==2.9.1
+
 # Testing
 pytest==8.3.4
 pytest-asyncio==0.24.0

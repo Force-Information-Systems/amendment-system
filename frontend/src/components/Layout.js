@@ -1,9 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import './Layout.css';
 
 function Layout({ children }) {
   const location = useLocation();
+  const { user, logout, isAdmin } = useAuth();
 
   const isActive = (path) => {
     return location.pathname === path || location.pathname.startsWith(path + '/');
@@ -29,7 +31,28 @@ function Layout({ children }) {
             >
               Amendments
             </Link>
+            <Link
+              to="/qa-dashboard"
+              className={`nav-link ${isActive('/qa-dashboard') ? 'active' : ''}`}
+            >
+              QA Dashboard
+            </Link>
+            {isAdmin() && (
+              <Link
+                to="/admin"
+                className={`nav-link ${isActive('/admin') ? 'active' : ''}`}
+              >
+                Admin
+              </Link>
+            )}
           </nav>
+          <div className="user-info">
+            <span className="user-name">Welcome, {user?.employee_name}</span>
+            <span className="user-role">({user?.role})</span>
+            <button onClick={logout} className="btn-logout">
+              Logout
+            </button>
+          </div>
         </div>
       </header>
       <main className="main-content">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { amendmentAPI, referenceAPI, employeeAPI, documentAPI } from '../services/api';
+import QASection from '../components/QASection';
 import './AmendmentDetail.css';
 
 function AmendmentDetail() {
@@ -479,146 +480,14 @@ function AmendmentDetail() {
           </div>
         </div>
 
-        <div className="detail-section">
-          <h2>QA Information</h2>
-          <div className="detail-grid">
-            <div className="detail-field">
-              <label>QA Assigned</label>
-              {editing ? (
-                <select
-                  name="qa_assigned_id"
-                  value={formData.qa_assigned_id || ''}
-                  onChange={handleChange}
-                >
-                  <option value="">Not Assigned</option>
-                  {employees.map(emp => (
-                    <option key={emp.employee_id} value={emp.employee_id}>
-                      {emp.employee_name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div>
-                  {amendment.qa_assigned_id
-                    ? employees.find(e => e.employee_id === amendment.qa_assigned_id)?.employee_name || 'Unknown'
-                    : 'Not Assigned'}
-                </div>
-              )}
-            </div>
-
-            <div className="detail-field">
-              <label>QA Assigned Date</label>
-              {editing ? (
-                <input
-                  type="datetime-local"
-                  name="qa_assigned_date"
-                  value={formData.qa_assigned_date ? new Date(formData.qa_assigned_date).toISOString().slice(0, 16) : ''}
-                  onChange={handleChange}
-                />
-              ) : (
-                <div>{formatDate(amendment.qa_assigned_date)}</div>
-              )}
-            </div>
-
-            <div className="detail-field">
-              <label>QA Signature</label>
-              {editing ? (
-                <input
-                  type="text"
-                  name="qa_signature"
-                  value={formData.qa_signature || ''}
-                  onChange={handleChange}
-                />
-              ) : (
-                <div>{amendment.qa_signature || 'N/A'}</div>
-              )}
-            </div>
-
-            <div className="detail-field">
-              <label>QA Completed Date</label>
-              {editing ? (
-                <input
-                  type="datetime-local"
-                  name="qa_completed_date"
-                  value={formData.qa_completed_date ? new Date(formData.qa_completed_date).toISOString().slice(0, 16) : ''}
-                  onChange={handleChange}
-                />
-              ) : (
-                <div>{formatDate(amendment.qa_completed_date)}</div>
-              )}
-            </div>
-          </div>
-
-          <div className="checkbox-group">
-            <label>
-              <input
-                type="checkbox"
-                name="qa_test_plan_check"
-                checked={editing ? formData.qa_test_plan_check : amendment.qa_test_plan_check}
-                onChange={handleChange}
-                disabled={!editing}
-              />
-              Test Plan Checked
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                name="qa_test_release_notes_check"
-                checked={editing ? formData.qa_test_release_notes_check : amendment.qa_test_release_notes_check}
-                onChange={handleChange}
-                disabled={!editing}
-              />
-              Release Notes Checked
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                name="qa_completed"
-                checked={editing ? formData.qa_completed : amendment.qa_completed}
-                onChange={handleChange}
-                disabled={!editing}
-              />
-              QA Completed
-            </label>
-          </div>
-
-          <div className="detail-field full-width">
-            <label>QA Test Plan Link</label>
-            {editing ? (
-              <input
-                type="text"
-                name="qa_test_plan_link"
-                value={formData.qa_test_plan_link || ''}
-                onChange={handleChange}
-                placeholder="https://"
-              />
-            ) : (
-              <div>
-                {amendment.qa_test_plan_link ? (
-                  <a href={amendment.qa_test_plan_link} target="_blank" rel="noopener noreferrer">
-                    {amendment.qa_test_plan_link}
-                  </a>
-                ) : (
-                  'N/A'
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="detail-field full-width">
-            <label>QA Notes</label>
-            {editing ? (
-              <textarea
-                name="qa_notes"
-                value={formData.qa_notes || ''}
-                onChange={handleChange}
-                rows="4"
-              />
-            ) : (
-              <div className="text-content">{amendment.qa_notes || 'N/A'}</div>
-            )}
-          </div>
-        </div>
+        <QASection
+          amendment={amendment}
+          employees={employees}
+          editing={editing}
+          onUpdate={(qaUpdates) => {
+            setFormData({ ...formData, ...qaUpdates });
+          }}
+        />
 
         <div className="detail-section">
           <h2>Progress History</h2>
