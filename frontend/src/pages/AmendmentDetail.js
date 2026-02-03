@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { amendmentAPI, referenceAPI, employeeAPI, documentAPI } from '../services/api';
 import QASection from '../components/QASection';
-import './AmendmentDetail.css';
 
 function AmendmentDetail() {
   const { id } = useParams();
@@ -14,6 +13,7 @@ function AmendmentDetail() {
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('general');
 
   // Reference data
   const [types, setTypes] = useState([]);
@@ -82,10 +82,7 @@ function AmendmentDetail() {
     loadReferenceData();
   }, [loadAmendment, loadReferenceData]);
 
-  const handleEdit = () => {
-    setEditing(true);
-  };
-
+  const handleEdit = () => setEditing(true);
   const handleCancel = () => {
     setEditing(false);
     setFormData(amendment);
@@ -144,10 +141,7 @@ function AmendmentDetail() {
     if (file) {
       setUploadFile(file);
       if (!documentData.document_name) {
-        setDocumentData(prev => ({
-          ...prev,
-          document_name: file.name
-        }));
+        setDocumentData(prev => ({ ...prev, document_name: file.name }));
       }
     }
   };
@@ -157,7 +151,6 @@ function AmendmentDetail() {
       setError('Please select a file to upload');
       return;
     }
-
     if (!documentData.document_name) {
       setError('Please enter a document name');
       return;
@@ -165,22 +158,18 @@ function AmendmentDetail() {
 
     try {
       setUploading(true);
-      const formData = new FormData();
-      formData.append('file', uploadFile);
-      formData.append('document_name', documentData.document_name);
-      formData.append('document_type', documentData.document_type);
+      const formDataObj = new FormData();
+      formDataObj.append('file', uploadFile);
+      formDataObj.append('document_name', documentData.document_name);
+      formDataObj.append('document_type', documentData.document_type);
       if (documentData.description) {
-        formData.append('description', documentData.description);
+        formDataObj.append('description', documentData.description);
       }
 
-      await documentAPI.upload(id, formData);
+      await documentAPI.upload(id, formDataObj);
       setShowDocumentModal(false);
       setUploadFile(null);
-      setDocumentData({
-        document_name: '',
-        document_type: 'Other',
-        description: ''
-      });
+      setDocumentData({ document_name: '', document_type: 'Other', description: '' });
       await loadAmendment();
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to upload document');
@@ -218,469 +207,651 @@ function AmendmentDetail() {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString();
+    return new Date(dateString).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getPriorityClass = (priority) => {
+    if (priority === 'Critical') return 'text-red-600';
+    if (priority === 'High') return 'text-orange-600';
+    return 'text-gray-600';
   };
 
   if (loading) {
-    return <div className="loading">Loading amendment...</div>;
-  }
-
-  if (error && !amendment) {
     return (
-      <div className="error-container">
-        <h2>Error</h2>
-        <p>{error}</p>
-        <button onClick={() => navigate('/amendments')}>Back to List</button>
+      <div className="max-w-[1440px] mx-auto px-6 py-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Loading amendment...</div>
+        </div>
       </div>
     );
   }
 
+  if (error && !amendment) {
+    return (
+      <div className="max-w-[1440px] mx-auto px-6 py-6">
+        <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-4">{error}</div>
+        <button
+          onClick={() => navigate('/amendments')}
+          className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200"
+        >
+          Back to List
+        </button>
+      </div>
+    );
+  }
+
+  const tabs = [
+    { id: 'general', label: 'General Info', icon: 'info' },
+    { id: 'qa', label: 'QA Testing', icon: 'fact_check' },
+    { id: 'history', label: 'History', icon: 'history' },
+    { id: 'attachments', label: 'Attachments', icon: 'attach_file' },
+  ];
+
   return (
-    <div className="amendment-detail">
-      <div className="detail-header">
-        <div>
-          <h1>{amendment.amendment_reference}</h1>
-          <div className="status-badges">
-            <span className={`badge status-${amendment.amendment_status.toLowerCase().replace(' ', '-')}`}>
-              {amendment.amendment_status}
-            </span>
-            <span className={`badge dev-status-${amendment.development_status.toLowerCase().replace(' ', '-')}`}>
-              {amendment.development_status}
-            </span>
-            <span className={`badge priority-${amendment.priority.toLowerCase()}`}>
-              {amendment.priority}
-            </span>
-          </div>
+    <div className="max-w-[1440px] mx-auto px-6 py-6">
+      {/* Breadcrumbs */}
+      <div className="flex flex-wrap gap-2 mb-2">
+        <Link to="/dashboard" className="text-gray-500 text-sm font-medium hover:underline">System</Link>
+        <span className="text-gray-500 text-sm font-medium">/</span>
+        <Link to="/amendments" className="text-gray-500 text-sm font-medium hover:underline">Amendments</Link>
+        <span className="text-gray-500 text-sm font-medium">/</span>
+        <span className="text-gray-900 dark:text-white text-sm font-bold">{amendment.amendment_reference}</span>
+      </div>
+
+      {/* Page Heading */}
+      <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-gray-900 dark:text-white text-3xl font-black leading-tight tracking-tight">
+            {amendment.amendment_reference}: {amendment.description?.substring(0, 50)}{amendment.description?.length > 50 ? '...' : ''}
+          </h1>
+          <p className="text-gray-500 text-sm">
+            Created on {formatDate(amendment.created_on)} by {amendment.created_by || 'Unknown'}
+            {amendment.modified_on && ` • Last updated ${formatDate(amendment.modified_on)}`}
+          </p>
         </div>
-        <div className="detail-actions">
+        <div className="flex gap-3">
           {!editing ? (
             <>
-              <button className="btn btn-primary" onClick={handleEdit}>Edit</button>
-              <button className="btn btn-success" onClick={() => setShowProgressModal(true)}>Add Progress</button>
-              <button className="btn btn-info" onClick={() => setShowDocumentModal(true)}>Upload Document</button>
-              <button className="btn btn-danger" onClick={handleDelete}>Delete</button>
+              <button
+                onClick={handleEdit}
+                className="flex items-center justify-center rounded-lg h-10 px-4 bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white text-sm font-bold hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+              >
+                <span className="material-symbols-outlined mr-2 text-lg">edit</span> Edit
+              </button>
+              <button
+                onClick={() => setShowProgressModal(true)}
+                className="flex items-center justify-center rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold hover:bg-primary/90 shadow-md"
+              >
+                <span className="material-symbols-outlined mr-2 text-lg">add</span> Add Progress
+              </button>
             </>
           ) : (
             <>
-              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                {saving ? 'Saving...' : 'Save'}
+              <button
+                onClick={handleCancel}
+                className="flex items-center justify-center rounded-lg h-10 px-4 bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white text-sm font-bold hover:bg-gray-200 transition-colors"
+              >
+                Cancel
               </button>
-              <button className="btn btn-secondary" onClick={handleCancel}>Cancel</button>
-              <button className="btn btn-success" onClick={() => setShowProgressModal(true)}>Add Progress</button>
-              <button className="btn btn-info" onClick={() => setShowDocumentModal(true)}>Upload Document</button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center justify-center rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold hover:bg-primary/90 shadow-md disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
             </>
           )}
         </div>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-4">{error}</div>}
 
-      <div className="detail-content">
-        <div className="detail-section">
-          <h2>Details</h2>
-          <div className="detail-grid">
-            <div className="detail-field">
-              <label>Type</label>
-              {editing ? (
-                <select name="amendment_type" value={formData.amendment_type} onChange={handleChange}>
-                  {types.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              ) : (
-                <div>{amendment.amendment_type}</div>
-              )}
-            </div>
-
-            <div className="detail-field">
-              <label>Status</label>
-              {editing ? (
-                <select name="amendment_status" value={formData.amendment_status} onChange={handleChange}>
-                  {statuses.map(status => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              ) : (
-                <div>{amendment.amendment_status}</div>
-              )}
-            </div>
-
-            <div className="detail-field">
-              <label>Development Status</label>
-              {editing ? (
-                <select name="development_status" value={formData.development_status} onChange={handleChange}>
-                  {devStatuses.map(status => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              ) : (
-                <div>{amendment.development_status}</div>
-              )}
-            </div>
-
-            <div className="detail-field">
-              <label>Priority</label>
-              {editing ? (
-                <select name="priority" value={formData.priority} onChange={handleChange}>
-                  {priorities.map(priority => (
-                    <option key={priority} value={priority}>{priority}</option>
-                  ))}
-                </select>
-              ) : (
-                <div>{amendment.priority}</div>
-              )}
-            </div>
-
-            <div className="detail-field">
-              <label>Force</label>
-              {editing ? (
-                <select name="force" value={formData.force || ''} onChange={handleChange}>
-                  <option value="">None</option>
-                  {forces.map(force => (
-                    <option key={force} value={force}>{force}</option>
-                  ))}
-                </select>
-              ) : (
-                <div>{amendment.force || 'N/A'}</div>
-              )}
-            </div>
-
-            <div className="detail-field">
-              <label>Application</label>
-              {editing ? (
-                <input
-                  type="text"
-                  name="application"
-                  value={formData.application || ''}
-                  onChange={handleChange}
-                />
-              ) : (
-                <div>{amendment.application || 'N/A'}</div>
-              )}
-            </div>
-
-            <div className="detail-field">
-              <label>Reported By</label>
-              {editing ? (
-                <select
-                  name="reported_by"
-                  value={formData.reported_by || ''}
-                  onChange={handleChange}
+      {/* Two-Column Layout */}
+      <div className="grid grid-cols-12 gap-6">
+        {/* Left Column (Tabs & Main Content) */}
+        <div className="col-span-12 lg:col-span-8 space-y-6">
+          <div className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200 dark:border-white/10 px-6 gap-8 bg-gray-50 dark:bg-white/5">
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center border-b-2 py-4 font-bold text-sm transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-500 hover:text-primary'
+                  }`}
                 >
-                  <option value="">Select Reporter</option>
-                  {employees.map(emp => (
-                    <option key={emp.employee_id} value={emp.initials}>
-                      {emp.employee_name} ({emp.initials})
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div>{amendment.reported_by || 'N/A'}</div>
-              )}
-            </div>
-
-            <div className="detail-field">
-              <label>Assigned To</label>
-              {editing ? (
-                <select
-                  name="assigned_to"
-                  value={formData.assigned_to || ''}
-                  onChange={handleChange}
-                >
-                  <option value="">Select Assignee</option>
-                  {employees.map(emp => (
-                    <option key={emp.employee_id} value={emp.initials}>
-                      {emp.employee_name} ({emp.initials})
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div>{amendment.assigned_to || 'N/A'}</div>
-              )}
-            </div>
-
-            <div className="detail-field">
-              <label>Date Reported</label>
-              {editing ? (
-                <input
-                  type="datetime-local"
-                  name="date_reported"
-                  value={formData.date_reported ? new Date(formData.date_reported).toISOString().slice(0, 16) : ''}
-                  onChange={handleChange}
-                />
-              ) : (
-                <div>{formatDate(amendment.date_reported)}</div>
-              )}
-            </div>
-          </div>
-
-          <div className="detail-field full-width">
-            <label>Description</label>
-            {editing ? (
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows="4"
-              />
-            ) : (
-              <div className="text-content">{amendment.description}</div>
-            )}
-          </div>
-
-          <div className="detail-field full-width">
-            <label>Notes</label>
-            {editing ? (
-              <textarea
-                name="notes"
-                value={formData.notes || ''}
-                onChange={handleChange}
-                rows="4"
-              />
-            ) : (
-              <div className="text-content">{amendment.notes || 'N/A'}</div>
-            )}
-          </div>
-
-          <div className="detail-field full-width">
-            <label>Release Notes</label>
-            {editing ? (
-              <textarea
-                name="release_notes"
-                value={formData.release_notes || ''}
-                onChange={handleChange}
-                rows="4"
-              />
-            ) : (
-              <div className="text-content">{amendment.release_notes || 'N/A'}</div>
-            )}
-          </div>
-
-          <div className="checkbox-group">
-            <label>
-              <input
-                type="checkbox"
-                name="database_changes"
-                checked={editing ? formData.database_changes : amendment.database_changes}
-                onChange={handleChange}
-                disabled={!editing}
-              />
-              Database Changes
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                name="db_upgrade_changes"
-                checked={editing ? formData.db_upgrade_changes : amendment.db_upgrade_changes}
-                onChange={handleChange}
-                disabled={!editing}
-              />
-              DB Upgrade Changes
-            </label>
-          </div>
-        </div>
-
-        <QASection
-          amendment={amendment}
-          employees={employees}
-          editing={editing}
-          onUpdate={(qaUpdates) => {
-            setFormData({ ...formData, ...qaUpdates });
-          }}
-        />
-
-        <div className="detail-section">
-          <h2>Progress History</h2>
-          {amendment.progress_entries && amendment.progress_entries.length > 0 ? (
-            <div className="progress-list">
-              {amendment.progress_entries.map(entry => (
-                <div key={entry.amendment_progress_id} className="progress-entry">
-                  <div className="progress-header">
-                    <strong>{entry.description}</strong>
-                    <span className="progress-date">{formatDate(entry.created_on)}</span>
-                  </div>
-                  {entry.notes && <div className="progress-notes">{entry.notes}</div>}
-                  {entry.created_by && <div className="progress-meta">By: {entry.created_by}</div>}
-                </div>
+                  <span className="material-symbols-outlined mr-2 text-lg">{tab.icon}</span> {tab.label}
+                </button>
               ))}
             </div>
-          ) : (
-            <p>No progress entries yet.</p>
-          )}
-        </div>
 
-        <div className="detail-section">
-          <h2>Applications</h2>
-          {amendment.applications && amendment.applications.length > 0 ? (
-            <div className="documents-list">
-              <table className="documents-table">
-                <thead>
-                  <tr>
-                    <th>Application</th>
-                    <th>Reported Version</th>
-                    <th>Applied Version</th>
-                    <th>Dev Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {amendment.applications.map(app => (
-                    <tr key={app.id}>
-                      <td><strong>{app.application_name}</strong></td>
-                      <td>{app.reported_version || 'N/A'}</td>
-                      <td>{app.applied_version || 'N/A'}</td>
-                      <td>{app.development_status || 'N/A'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p>No applications linked yet.</p>
-          )}
-        </div>
-
-        <div className="detail-section">
-          <h2>Documents</h2>
-          {amendment.documents && amendment.documents.length > 0 ? (
-            <div className="documents-list">
-              <table className="documents-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Size</th>
-                    <th>Uploaded</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {amendment.documents.map(doc => (
-                    <tr key={doc.document_id}>
-                      <td>
-                        <strong>{doc.document_name}</strong>
-                        {doc.description && <div className="doc-description">{doc.description}</div>}
-                      </td>
-                      <td>{doc.document_type}</td>
-                      <td>{doc.file_size ? `${(doc.file_size / 1024).toFixed(1)} KB` : 'N/A'}</td>
-                      <td>
-                        {formatDate(doc.uploaded_on)}
-                        {doc.uploaded_by && <div className="doc-meta">By: {doc.uploaded_by}</div>}
-                      </td>
-                      <td>
-                        <button
-                          className="btn-small btn-download"
-                          onClick={() => handleDownloadDocument(doc.document_id, doc.original_filename)}
+            {/* Tab Content */}
+            <div className="p-6">
+              {activeTab === 'general' && (
+                <div className="space-y-6">
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Type</label>
+                      {editing ? (
+                        <select
+                          name="amendment_type"
+                          value={formData.amendment_type}
+                          onChange={handleChange}
+                          className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
                         >
-                          Download
-                        </button>
-                        <button
-                          className="btn-small btn-delete"
-                          onClick={() => handleDeleteDocument(doc.document_id)}
+                          {types.map(type => <option key={type} value={type}>{type}</option>)}
+                        </select>
+                      ) : (
+                        <p className="text-sm font-medium">{amendment.amendment_type}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Force</label>
+                      {editing ? (
+                        <select
+                          name="force"
+                          value={formData.force || ''}
+                          onChange={handleChange}
+                          className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
                         >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                          <option value="">None</option>
+                          {forces.map(force => <option key={force} value={force}>{force}</option>)}
+                        </select>
+                      ) : (
+                        <p className="text-sm font-medium">{amendment.force || 'N/A'}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Application</label>
+                      {editing ? (
+                        <input
+                          type="text"
+                          name="application"
+                          value={formData.application || ''}
+                          onChange={handleChange}
+                          className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
+                        />
+                      ) : (
+                        <p className="text-sm font-medium">{amendment.application || 'N/A'}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Date Reported</label>
+                      {editing ? (
+                        <input
+                          type="datetime-local"
+                          name="date_reported"
+                          value={formData.date_reported ? new Date(formData.date_reported).toISOString().slice(0, 16) : ''}
+                          onChange={handleChange}
+                          className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
+                        />
+                      ) : (
+                        <p className="text-sm font-medium">{formatDateTime(amendment.date_reported)}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Reported By</label>
+                      {editing ? (
+                        <select
+                          name="reported_by"
+                          value={formData.reported_by || ''}
+                          onChange={handleChange}
+                          className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
+                        >
+                          <option value="">Select Reporter</option>
+                          {employees.map(emp => (
+                            <option key={emp.employee_id} value={emp.initials}>{emp.employee_name} ({emp.initials})</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="text-sm font-medium">{amendment.reported_by || 'N/A'}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Assigned To</label>
+                      {editing ? (
+                        <select
+                          name="assigned_to"
+                          value={formData.assigned_to || ''}
+                          onChange={handleChange}
+                          className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
+                        >
+                          <option value="">Select Assignee</option>
+                          {employees.map(emp => (
+                            <option key={emp.employee_id} value={emp.initials}>{emp.employee_name} ({emp.initials})</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="text-sm font-medium">{amendment.assigned_to || 'N/A'}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Description</label>
+                    {editing ? (
+                      <textarea
+                        name="description"
+                        value={formData.description}
+                        onChange={handleChange}
+                        rows="4"
+                        className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
+                      />
+                    ) : (
+                      <p className="text-sm leading-relaxed bg-gray-50 dark:bg-white/5 p-4 rounded-lg">{amendment.description}</p>
+                    )}
+                  </div>
+
+                  {/* Notes */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Notes</label>
+                    {editing ? (
+                      <textarea
+                        name="notes"
+                        value={formData.notes || ''}
+                        onChange={handleChange}
+                        rows="4"
+                        className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
+                      />
+                    ) : (
+                      <p className="text-sm leading-relaxed bg-gray-50 dark:bg-white/5 p-4 rounded-lg">{amendment.notes || 'No notes'}</p>
+                    )}
+                  </div>
+
+                  {/* Release Notes */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Release Notes</label>
+                    {editing ? (
+                      <textarea
+                        name="release_notes"
+                        value={formData.release_notes || ''}
+                        onChange={handleChange}
+                        rows="4"
+                        className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
+                      />
+                    ) : (
+                      <p className="text-sm leading-relaxed bg-gray-50 dark:bg-white/5 p-4 rounded-lg">{amendment.release_notes || 'No release notes'}</p>
+                    )}
+                  </div>
+
+                  {/* Checkboxes */}
+                  <div className="flex flex-wrap gap-6">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        name="database_changes"
+                        checked={editing ? formData.database_changes : amendment.database_changes}
+                        onChange={handleChange}
+                        disabled={!editing}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      Database Changes
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        name="db_upgrade_changes"
+                        checked={editing ? formData.db_upgrade_changes : amendment.db_upgrade_changes}
+                        onChange={handleChange}
+                        disabled={!editing}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      DB Upgrade Changes
+                    </label>
+                  </div>
+
+                  {/* Applications */}
+                  {amendment.applications && amendment.applications.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-bold">Linked Applications</h3>
+                      <div className="border border-gray-200 dark:border-white/10 rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 dark:bg-white/5">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Application</th>
+                              <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Reported Ver.</th>
+                              <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Applied Ver.</th>
+                              <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200 dark:divide-white/10">
+                            {amendment.applications.map(app => (
+                              <tr key={app.id}>
+                                <td className="px-4 py-3 font-medium">{app.application_name}</td>
+                                <td className="px-4 py-3 text-gray-500">{app.reported_version || 'N/A'}</td>
+                                <td className="px-4 py-3 text-gray-500">{app.applied_version || 'N/A'}</td>
+                                <td className="px-4 py-3 text-gray-500">{app.development_status || 'N/A'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'qa' && (
+                <QASection
+                  amendment={amendment}
+                  employees={employees}
+                  editing={editing}
+                  onUpdate={(qaUpdates) => setFormData({ ...formData, ...qaUpdates })}
+                />
+              )}
+
+              {activeTab === 'history' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold">Progress History</h3>
+                    <button
+                      onClick={() => setShowProgressModal(true)}
+                      className="flex items-center gap-2 text-sm font-bold text-primary hover:underline"
+                    >
+                      <span className="material-symbols-outlined text-lg">add</span> Add Entry
+                    </button>
+                  </div>
+                  {amendment.progress_entries && amendment.progress_entries.length > 0 ? (
+                    <div className="space-y-3">
+                      {amendment.progress_entries.map(entry => (
+                        <div key={entry.amendment_progress_id} className="border border-gray-200 dark:border-white/10 rounded-lg p-4 bg-gray-50/50 dark:bg-white/5">
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-bold text-sm">{entry.description}</h4>
+                            <span className="text-xs text-gray-500">{formatDateTime(entry.created_on)}</span>
+                          </div>
+                          {entry.notes && <p className="text-sm text-gray-600 dark:text-gray-400">{entry.notes}</p>}
+                          {entry.created_by && <p className="text-xs text-gray-500 mt-2">By: {entry.created_by}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">No progress entries yet.</p>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'attachments' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold">Documents</h3>
+                    <button
+                      onClick={() => setShowDocumentModal(true)}
+                      className="flex items-center gap-2 text-sm font-bold text-primary hover:underline"
+                    >
+                      <span className="material-symbols-outlined text-lg">upload</span> Upload Document
+                    </button>
+                  </div>
+                  {amendment.documents && amendment.documents.length > 0 ? (
+                    <div className="space-y-3">
+                      {amendment.documents.map(doc => (
+                        <div key={doc.document_id} className="flex items-center justify-between border border-gray-200 dark:border-white/10 rounded-lg p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-gray-100 dark:bg-white/10 rounded-lg flex items-center justify-center">
+                              <span className="material-symbols-outlined text-gray-500">description</span>
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-sm">{doc.document_name}</h4>
+                              <p className="text-xs text-gray-500">
+                                {doc.document_type} • {doc.file_size ? `${(doc.file_size / 1024).toFixed(1)} KB` : 'Unknown size'} • {formatDate(doc.uploaded_on)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleDownloadDocument(doc.document_id, doc.original_filename)}
+                              className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                            >
+                              <span className="material-symbols-outlined">download</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteDocument(doc.document_id)}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <span className="material-symbols-outlined">delete</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <span className="material-symbols-outlined text-4xl text-gray-300 mb-2">folder_open</span>
+                      <p className="text-gray-500 text-sm">No documents attached yet</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          ) : (
-            <p>No documents attached yet.</p>
-          )}
+          </div>
         </div>
 
-        <div className="detail-section">
-          <h2>Metadata</h2>
-          <div className="detail-grid">
-            <div className="detail-field">
-              <label>Created On</label>
-              <div>{formatDate(amendment.created_on)}</div>
+        {/* Right Sidebar (Metadata Panel) */}
+        <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
+          {/* Status & SLA Card */}
+          <div className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-5 shadow-sm">
+            <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-4">Lifecycle Status</h3>
+            <div className="flex items-center gap-3 mb-6">
+              {editing ? (
+                <select
+                  name="amendment_status"
+                  value={formData.amendment_status}
+                  onChange={handleChange}
+                  className="flex-1 rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm font-bold"
+                >
+                  {statuses.map(status => <option key={status} value={status}>{status}</option>)}
+                </select>
+              ) : (
+                <span className="flex-1 px-4 py-2 bg-primary/10 text-primary text-sm font-bold rounded-lg border border-primary/20 text-center">
+                  {amendment.amendment_status}
+                </span>
+              )}
             </div>
-            <div className="detail-field">
-              <label>Created By</label>
-              <div>{amendment.created_by || 'N/A'}</div>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-white/10">
+                <span className="text-sm text-gray-500">Priority</span>
+                {editing ? (
+                  <select
+                    name="priority"
+                    value={formData.priority}
+                    onChange={handleChange}
+                    className="rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm font-bold"
+                  >
+                    {priorities.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                ) : (
+                  <span className={`flex items-center gap-1.5 text-sm font-bold ${getPriorityClass(amendment.priority)}`}>
+                    {amendment.priority === 'Critical' && <span className="w-2 h-2 rounded-full bg-red-600"></span>}
+                    {amendment.priority === 'High' && <span className="w-2 h-2 rounded-full bg-orange-500"></span>}
+                    {amendment.priority}
+                  </span>
+                )}
+              </div>
+              <div className="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-white/10">
+                <span className="text-sm text-gray-500">Dev Status</span>
+                {editing ? (
+                  <select
+                    name="development_status"
+                    value={formData.development_status}
+                    onChange={handleChange}
+                    className="rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm font-bold"
+                  >
+                    {devStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                ) : (
+                  <span className="text-sm font-bold text-gray-900 dark:text-white">{amendment.development_status}</span>
+                )}
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">QA Status</span>
+                <span className={`text-sm font-bold ${amendment.qa_completed ? 'text-green-600' : 'text-gray-600'}`}>
+                  {amendment.qa_completed ? 'Completed' : 'Pending'}
+                </span>
+              </div>
             </div>
-            <div className="detail-field">
-              <label>Modified On</label>
-              <div>{formatDate(amendment.modified_on)}</div>
+          </div>
+
+          {/* Personnel Card */}
+          <div className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-5 shadow-sm">
+            <h3 className="text-xs font-black uppercase tracking-widest text-gray-500 mb-4">Personnel</h3>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                  {amendment.assigned_to ? amendment.assigned_to.substring(0, 2).toUpperCase() : '?'}
+                </div>
+                <div>
+                  <p className="text-sm font-bold">{amendment.assigned_to || 'Unassigned'}</p>
+                  <p className="text-xs text-gray-500">Assigned Developer</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-white/10 flex items-center justify-center text-gray-600 font-bold text-sm">
+                  {amendment.reported_by ? amendment.reported_by.substring(0, 2).toUpperCase() : '?'}
+                </div>
+                <div>
+                  <p className="text-sm font-bold">{amendment.reported_by || 'Unknown'}</p>
+                  <p className="text-xs text-gray-500">Reporter</p>
+                </div>
+              </div>
             </div>
-            <div className="detail-field">
-              <label>Modified By</label>
-              <div>{amendment.modified_by || 'N/A'}</div>
+          </div>
+
+          {/* Quick Metadata Grid */}
+          <div className="bg-gray-900 text-white rounded-xl p-5 shadow-lg">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Reference</p>
+                <p className="text-xs font-bold font-mono">{amendment.amendment_reference}</p>
+              </div>
+              <div className="space-y-1 text-right">
+                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Application</p>
+                <p className="text-xs font-bold">{amendment.application || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Type</p>
+                <p className="text-xs font-bold">{amendment.amendment_type}</p>
+              </div>
+              <div className="space-y-1 text-right">
+                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Force</p>
+                <p className="text-xs font-bold">{amendment.force || 'N/A'}</p>
+              </div>
             </div>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl p-5">
+            <h3 className="text-xs font-black uppercase tracking-widest text-red-600 mb-3">Danger Zone</h3>
+            <button
+              onClick={handleDelete}
+              className="w-full py-2 px-4 border border-red-300 dark:border-red-800 text-red-600 text-sm font-bold rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors"
+            >
+              Delete Amendment
+            </button>
           </div>
         </div>
       </div>
 
+      {/* Progress Modal */}
       {showProgressModal && (
-        <div className="modal-overlay" onClick={() => setShowProgressModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>Add Progress Update</h2>
-            <div className="modal-body">
-              <div className="form-field">
-                <label>Description *</label>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowProgressModal(false)}>
+          <div className="bg-white dark:bg-background-dark rounded-xl p-6 max-w-md w-full mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold mb-4">Add Progress Update</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Description *</label>
                 <input
                   type="text"
                   value={progressData.description}
                   onChange={(e) => setProgressData({...progressData, description: e.target.value})}
                   placeholder="Brief description of progress"
+                  className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
                 />
               </div>
-              <div className="form-field">
-                <label>Notes</label>
+              <div>
+                <label className="block text-sm font-medium mb-1">Notes</label>
                 <textarea
                   value={progressData.notes}
                   onChange={(e) => setProgressData({...progressData, notes: e.target.value})}
                   placeholder="Additional details"
                   rows="4"
+                  className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
                 />
               </div>
-              <div className="form-field">
-                <label>Date</label>
+              <div>
+                <label className="block text-sm font-medium mb-1">Date</label>
                 <input
                   type="datetime-local"
                   value={progressData.start_date}
                   onChange={(e) => setProgressData({...progressData, start_date: e.target.value})}
+                  className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
                 />
               </div>
             </div>
-            <div className="modal-footer">
-              <button className="btn btn-primary" onClick={handleAddProgress}>Add Progress</button>
-              <button className="btn btn-secondary" onClick={() => setShowProgressModal(false)}>Cancel</button>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowProgressModal(false)}
+                className="flex-1 py-2 bg-gray-100 dark:bg-white/10 rounded-lg font-bold text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddProgress}
+                className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-sm"
+              >
+                Add Progress
+              </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Document Upload Modal */}
       {showDocumentModal && (
-        <div className="modal-overlay" onClick={() => setShowDocumentModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>Upload Document</h2>
-            <div className="modal-body">
-              <div className="form-field">
-                <label>Select File *</label>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowDocumentModal(false)}>
+          <div className="bg-white dark:bg-background-dark rounded-xl p-6 max-w-md w-full mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold mb-4">Upload Document</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Select File *</label>
                 <input
                   type="file"
                   onChange={handleFileSelect}
                   accept="*/*"
+                  className="w-full text-sm"
                 />
-                {uploadFile && <div className="file-info">Selected: {uploadFile.name}</div>}
+                {uploadFile && <p className="text-xs text-gray-500 mt-1">Selected: {uploadFile.name}</p>}
               </div>
-              <div className="form-field">
-                <label>Document Name *</label>
+              <div>
+                <label className="block text-sm font-medium mb-1">Document Name *</label>
                 <input
                   type="text"
                   value={documentData.document_name}
                   onChange={(e) => setDocumentData({...documentData, document_name: e.target.value})}
-                  placeholder="Enter a display name for this document"
+                  placeholder="Enter a display name"
+                  className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
                 />
               </div>
-              <div className="form-field">
-                <label>Document Type</label>
+              <div>
+                <label className="block text-sm font-medium mb-1">Document Type</label>
                 <select
                   value={documentData.document_type}
                   onChange={(e) => setDocumentData({...documentData, document_type: e.target.value})}
+                  className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
                 >
                   <option value="Test Plan">Test Plan</option>
                   <option value="Screenshot">Screenshot</option>
@@ -688,25 +859,31 @@ function AmendmentDetail() {
                   <option value="Other">Other</option>
                 </select>
               </div>
-              <div className="form-field">
-                <label>Description</label>
+              <div>
+                <label className="block text-sm font-medium mb-1">Description</label>
                 <textarea
                   value={documentData.description}
                   onChange={(e) => setDocumentData({...documentData, description: e.target.value})}
                   placeholder="Optional description"
                   rows="3"
+                  className="w-full rounded-lg border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm"
                 />
               </div>
             </div>
-            <div className="modal-footer">
+            <div className="flex gap-3 mt-6">
               <button
-                className="btn btn-primary"
+                onClick={() => setShowDocumentModal(false)}
+                className="flex-1 py-2 bg-gray-100 dark:bg-white/10 rounded-lg font-bold text-sm"
+              >
+                Cancel
+              </button>
+              <button
                 onClick={handleUploadDocument}
                 disabled={uploading || !uploadFile}
+                className="flex-1 py-2 bg-primary text-white rounded-lg font-bold text-sm disabled:opacity-50"
               >
                 {uploading ? 'Uploading...' : 'Upload'}
               </button>
-              <button className="btn btn-secondary" onClick={() => setShowDocumentModal(false)}>Cancel</button>
             </div>
           </div>
         </div>
