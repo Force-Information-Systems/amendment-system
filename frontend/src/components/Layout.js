@@ -90,10 +90,10 @@ function Layout({ children }) {
 
           {/* Notification & Settings buttons */}
           <div className="flex gap-2">
-            <button className="relative flex items-center justify-center rounded-lg size-10 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors text-gray-700 dark:text-gray-200">
+            <button className="relative flex items-center justify-center rounded-lg size-10 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors text-white">
               <span className="material-symbols-outlined">notifications</span>
             </button>
-            <button className="flex items-center justify-center rounded-lg size-10 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors text-gray-700 dark:text-gray-200">
+            <button className="flex items-center justify-center rounded-lg size-10 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors text-white">
               <span className="material-symbols-outlined">settings</span>
             </button>
           </div>
@@ -104,15 +104,15 @@ function Layout({ children }) {
           {/* User Info */}
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold leading-none text-gray-900 dark:text-white">{user?.employee_name || 'User'}</p>
-              <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-1">{user?.role || 'User'}</p>
+              <p className="text-sm font-bold leading-none text-white">{user?.employee_name || 'User'}</p>
+              <p className="text-[11px] text-white mt-1">{user?.role || 'User'}</p>
             </div>
             <div className="size-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm border-2 border-primary/20">
               {getInitials(user?.employee_name)}
             </div>
             <button
               onClick={logout}
-              className="ml-2 text-gray-600 dark:text-gray-300 hover:text-red-500 transition-colors"
+              className="ml-2 text-white hover:text-red-400 transition-colors"
               title="Logout"
             >
               <span className="material-symbols-outlined">logout</span>
