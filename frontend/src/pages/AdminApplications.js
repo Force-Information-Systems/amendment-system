@@ -7,6 +7,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 function AdminApplications() {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingApp, setEditingApp] = useState(null);
   const [formData, setFormData] = useState({
@@ -22,11 +23,12 @@ function AdminApplications() {
   const loadApplications = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await axios.get(`${API_BASE_URL}/applications`);
       setApplications(response.data || []);
     } catch (error) {
       console.error('Error loading applications:', error);
-      alert('Failed to load applications');
+      setError(error.response?.data?.detail || error.message || 'Failed to load applications');
     } finally {
       setLoading(false);
     }
@@ -100,7 +102,34 @@ function AdminApplications() {
   if (loading) {
     return (
       <div className="admin-page">
-        <div className="admin-loading">Loading applications...</div>
+        <div className="flex items-center justify-center h-64">
+          <div className="flex flex-col items-center gap-3">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+            <div className="text-gray-500 dark:text-gray-400">Loading applications...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="admin-page">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 p-6 rounded-lg">
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined text-2xl">error</span>
+            <div className="flex-1">
+              <h3 className="font-semibold mb-1">Failed to load applications</h3>
+              <p className="text-sm mb-3">{error}</p>
+              <button
+                onClick={loadApplications}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

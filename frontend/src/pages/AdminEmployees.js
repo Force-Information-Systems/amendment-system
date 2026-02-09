@@ -7,6 +7,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 function AdminEmployees() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [formData, setFormData] = useState({
@@ -24,11 +25,12 @@ function AdminEmployees() {
   const loadEmployees = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await axios.get(`${API_BASE_URL}/employees`);
       setEmployees(response.data || []);
     } catch (error) {
       console.error('Error loading employees:', error);
-      alert('Failed to load employees');
+      setError(error.response?.data?.detail || error.message || 'Failed to load employees');
     } finally {
       setLoading(false);
     }
@@ -106,7 +108,34 @@ function AdminEmployees() {
   if (loading) {
     return (
       <div className="admin-page">
-        <div className="admin-loading">Loading employees...</div>
+        <div className="flex items-center justify-center h-64">
+          <div className="flex flex-col items-center gap-3">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+            <div className="text-gray-500 dark:text-gray-400">Loading employees...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="admin-page">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 p-6 rounded-lg">
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined text-2xl">error</span>
+            <div className="flex-1">
+              <h3 className="font-semibold mb-1">Failed to load employees</h3>
+              <p className="text-sm mb-3">{error}</p>
+              <button
+                onClick={loadEmployees}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
