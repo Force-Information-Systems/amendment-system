@@ -34,7 +34,10 @@ function Dashboard() {
     return (
       <div className="max-w-[1400px] mx-auto p-6 lg:px-10">
         <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">Loading dashboard...</div>
+          <div className="flex flex-col items-center gap-3">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+            <div className="text-gray-500 dark:text-gray-400">Loading dashboard...</div>
+          </div>
         </div>
       </div>
     );
@@ -43,7 +46,21 @@ function Dashboard() {
   if (error) {
     return (
       <div className="max-w-[1400px] mx-auto p-6 lg:px-10">
-        <div className="bg-red-50 text-red-600 p-4 rounded-lg">{error}</div>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 p-6 rounded-lg">
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined text-2xl">error</span>
+            <div className="flex-1">
+              <h3 className="font-semibold mb-1">Failed to load dashboard</h3>
+              <p className="text-sm mb-3">{error}</p>
+              <button
+                onClick={loadData}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
